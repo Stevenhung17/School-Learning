@@ -16,27 +16,41 @@
         }
         .container {
             text-align: center;
-            padding: 30px;
+            padding: 35px 40px;
             background: white;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 300px; /* 固定寬度讓按鈕看起來更整齊 */
         }
         h1 {
             color: #333;
-            margin-bottom: 24px;
+            margin-bottom: 28px;
+            font-size: 24px;
+        }
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 16px; /* 控制按鈕之間的上下間距 */
         }
         .btn {
-            display: inline-block;
+            display: block;
             padding: 12px 24px;
             font-size: 18px;
             color: white;
             background-color: #0078d4;
             text-decoration: none;
             border-radius: 6px;
-            transition: background-color 0.2s ease;
+            transition: background-color 0.2s ease, transform 0.1s ease;
         }
         .btn:hover {
             background-color: #005a9e;
+        }
+        /* 為 Gemini 按鈕換個顏色做區隔（可選） */
+        .btn-gemini {
+            background-color: #1a73e8;
+        }
+        .btn-gemini:hover {
+            background-color: #1557b0;
         }
     </style>
 </head>
@@ -44,9 +58,14 @@
 
     <div class="container">
         <h1>歡迎來到詩詞遊戲</h1>
-        <a href="Mandarin/Copilot_Buildin_grade_Full.html" class="btn">詩詞大挑戰-Copilot</a>
-        <a href="Mandarin/Google AI_B.html" class="btn">詩詞大挑戰-Gemini_B</a>
-       
+        
+        <div class="btn-group">
+            <!-- 第一個連結：Copilot -->
+            <a href="Mandarin/Copilot_Buildin_grade_Full.html" class="btn">詩詞大挑戰-Copilot</a>
+            
+            <!-- 第二個連結：Gemini B (包含 Mandarin/ 路徑與空格編碼處理) -->
+            <a href="Mandarin/Google AI_B.html" class="btn btn-gemini">詩詞大挑戰-Gemini B</a>
+        </div>
     </div>
 
 </body>
