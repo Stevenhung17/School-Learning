@@ -133,10 +133,10 @@
 
     // 網頁載入後自動讀取 CSV
     window.onload = function() {
-        fetch('POEMS.CSV')
+        fetch('Poems.csv')
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('找不到 POEMS.CSV 檔案，請確認檔案路徑。');
+                    throw new Error('找不到 Poems.csv 檔案，請確認檔案路徑。');
                 }
                 return response.text();
             })
