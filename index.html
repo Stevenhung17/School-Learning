@@ -3,69 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>詩詞大挑戰</title>
+    <title>小冒險家的遊戲天堂 🎮</title>
     <style>
+        /* 1. 滿版與活潑的星空藍底 */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', 'Microsoft JhengHei', sans-serif;
+            background-color: #e0f2fe; /* 粉藍色背景 */
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            margin: 0;
-            background-color: #f5f7fa;
+            overflow: hidden;
         }
-        .container {
-            text-align: center;
-            padding: 35px 40px;
+
+        /* 2. 遊戲大廳大卡片 */
+        .hub-container {
+            width: 90%;
+            max-width: 500px;
             background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            width: 300px; /* 固定寬度讓按鈕看起來更整齊 */
+            border-radius: 30px;
+            padding: 40px 30px;
+            box-sizing: border-box;
+            border: 6px solid #bae6fd;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+            text-align: center;
         }
+
+        /* 標題動畫 */
         h1 {
-            color: #333;
-            margin-bottom: 28px;
-            font-size: 24px;
+            color: #0c4a6e;
+            font-size: 2rem;
+            margin-bottom: 30px;
+            font-weight: 900;
+            letter-spacing: 2px;
         }
+
+        /* 按鈕群組 */
         .btn-group {
             display: flex;
             flex-direction: column;
-            gap: 16px; /* 控制按鈕之間的上下間距 */
+            gap: 20px; /* 增加按鈕之間的間距，防止誤點 */
         }
-        .btn {
+
+        /* 統一的 Q 彈大按鈕基礎樣式 */
+        .game-btn {
             display: block;
-            padding: 12px 24px;
-            font-size: 18px;
+            padding: 18px 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
             color: white;
-            background-color: #0078d4;
             text-decoration: none;
-            border-radius: 6px;
-            transition: background-color 0.2s ease, transform 0.1s ease;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: transform 0.1s, border-bottom 0.1s;
+            box-sizing: border-box;
         }
-        .btn:hover {
-            background-color: #005a9e;
+
+        /* 按鈕按下去的 Q 彈實體玩具感 */
+        .game-btn:active {
+            transform: translateY(4px);
         }
-        /* 為 Gemini 按鈕換個顏色做區隔（可選） */
+
+        /* 🟢 1. 九九乘法表按鈕（新加入）：亮黃色兒童風格 */
+        .btn-math {
+            background-color: #fef08a; /* 亮黃色 */
+            color: #713f12;
+            border-bottom: 6px solid #facc15;
+        }
+        .btn-math:hover { background-color: #fef9c3; }
+        .btn-math:active { border-bottom: 2px solid #facc15; }
+
+        /* 🔵 2. Copilot 詩詞按鈕：天藍色古風或科技感 */
+        .btn-copilot {
+            background-color: #38bdf8; /* 天藍色 */
+            color: #0369a1;
+            border-bottom: 6px solid #0284c7;
+        }
+        .btn-copilot:hover { background-color: #7dd3fc; }
+        .btn-copilot:active { border-bottom: 2px solid #0284c7; }
+
+        /* 🟣 3. Gemini B 詩詞按鈕：溫柔紫羅蘭色 */
         .btn-gemini {
-            background-color: #1a73e8;
+            background-color: #c084fc; /* 紫色 */
+            color: #581c87;
+            border-bottom: 6px solid #a855f7;
         }
-        .btn-gemini:hover {
-            background-color: #1557b0;
+        .btn-gemini:hover { background-color: #d8b4fe; }
+        .btn-gemini:active { border-bottom: 2px solid #a855f7; }
+
+        /* 裝飾小文字 */
+        .footer-note {
+            margin-top: 25px;
+            font-size: 0.95rem;
+            color: #64748b;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>歡迎來到詩詞遊戲</h1>
+    <div class="hub-container">
+        <h1>🎮 冒險家遊戲大廳 🚀</h1>
         
         <div class="btn-group">
-            <!-- 第一個連結：Copilot -->
-            <a href="Mandarin/Copilot_Buildin_grade_Full.html" class="btn">詩詞大挑戰-Copilot</a>
+            <a href="Times_table_V5.html" class="game-btn btn-math">乘法挑戰賽 🚀</a>
             
-            <!-- 第二個連結：Gemini B (包含 Mandarin/ 路徑與空格編碼處理) -->
-            <a href="Mandarin/Google AI_B.html" class="btn btn-gemini">詩詞大挑戰-Gemini B</a>
+            <a href="Mandarin/Copilot_Buildin_grade_Full.html" class="game-btn btn-copilot">詩詞大挑戰 - Copilot 📜</a>
+            
+            <a href="Mandarin/Google AI_B.html" class="game-btn btn-gemini">詩詞大挑戰 - Gemini B 🌌</a>
         </div>
+
+        <div class="footer-note">點擊想玩的遊戲，立刻開始破關！</div>
     </div>
 
 </body>
