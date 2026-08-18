@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>等級壓制貪吃蛇大亂鬥 (效能極致優化版)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            background-color: #0d1117;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        canvas#gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .hud {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #top-hud {
+            top: 15px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 0 20px;
+        }
+        .hud-card {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 10px 16px;
+        }
+
+        #player-card {
+            min-width: 200px;
+        }
+        .player-info-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .level-badge {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 14px;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .score-text {
+            font-size: 13px;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+        .score-val {
+            color: #facc15;
+            font-size: 15px;
+            font-weight: 700;
+        }
+        .exp-bar-container {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        #exp-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #10b981, #06b6d4, #3b82f6);
+            transition: width 0.1s ease-out;
+        }
+
+        #timer-card {
+            text-align: center;
+            padding: 8px 24px;
+        }
+        #timer-text {
+            font-size: 26px;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            color: #38bdf8;
+        }
+        .timer-warning {
+            color: #ef4444 !important;
+            animation: pulse 0.8s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+
+        #leaderboard {
+            min-width: 180px;
+        }
+        .lb-title {
+            font-size: 12px;
+            font-weight: 800;
+            color: #cbd5e1;
+            margin-bottom: 6px;
+        }
+        .lb-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            padding: 2px 0;
+            color: #94a3b8;
+        }
+        .lb-item.is-player {
+            color: #38bdf8;
+            font-weight: 700;
+        }
+        .lb-name {
+            flex-grow: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 0 6px;
+        }
+        .lb-level {
+            font-weight: 700;
+            color: #facc15;
+        }
+
+        #buff-container {
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .buff-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 6px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .buff-icon.active {
+            opacity: 1;
+        }
+        .buff-icon .icon {
+            font-size: 20px;
+        }
+        .buff-time {
+            color: #38bdf8;
+        }
+
+        #minimap-container {
+            bottom: 20px;
+            right: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            overflow: hidden;
+            background: rgba(15, 23, 42, 0.7);
+        }
+        #minimap {
+            display: block;
+            width: 120px;
+            height: 120px;
+        }
+
+        #boost-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 160px;
+            width: 66px;
+            height: 66px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #f59e0b, #d97706);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            color: white;
+            font-weight: 900;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            pointer-events: auto;
+            cursor: pointer;
+            z-index: 20;
+        }
+        #boost-btn:active {
+            transform: scale(0.92);
+        }
+
+        #alert-banner {
+            position: absolute;
+            top: 85px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: rgba(220, 38, 38, 0.95);
+            border: 1px solid #f87171;
+            padding: 8px 24px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 800;
+            color: #fff;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            z-index: 30;
+        }
+        #alert-banner.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(8, 12, 22, 0.85);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .modal-overlay.hidden {
+            display: none;
+        }
+        .modal-box {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 24px 30px;
+            max-width: 440px;
+            width: 90%;
+            text-align: center;
+        }
+        .modal-title {
+            font-size: 26px;
+            font-weight: 900;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .modal-desc {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+        .rules-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            text-align: left;
+            margin-bottom: 20px;
+            font-size: 11px;
+        }
+        .rule-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px;
+            border-radius: 8px;
+        }
+        .rule-card span {
+            font-weight: bold;
+            color: #facc15;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 15px;
+            font-weight: 800;
+            border-radius: 25px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin: 16px 0;
+        }
+        .stat-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px 4px;
+            border-radius: 10px;
+        }
+        .stat-label {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: 800;
+            color: #38bdf8;
+        }
+
+        @media (max-width: 600px) {
+            #top-hud { padding: 0 8px; }
+            #player-card { min-width: 140px; padding: 6px 8px; }
+            #leaderboard { display: none; }
+            #minimap-container { width: 80px; height: 80px; }
+            #minimap { width: 80px; height: 80px; }
+            #boost-btn { right: 100px; width: 56px; height: 56px; font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="top-hud" class="hud">
+        <div id="player-card" class="hud-card">
+            <div class="player-info-row">
+                <span id="player-level-badge" class="level-badge">Lv. 1</span>
+                <span class="score-text">擊殺: <span id="player-kills" class="score-val">0</span></span>
+            </div>
+            <div class="exp-bar-container">
+                <div id="exp-bar-fill"></div>
+            </div>
+        </div>
+
+        <div id="timer-card" class="hud-card">
+            <div id="timer-text">01:30</div>
+        </div>
+
+        <div id="leaderboard" class="hud-card">
+            <div class="lb-title">🏆 競技場即時排行</div>
+            <div id="lb-list"></div>
+        </div>
+    </div>
+
+    <div id="alert-banner">⚠️ 警告：巨型首領蛇降臨！</div>
+
+    <div id="buff-container" class="hud">
+        <div id="buff-magnet" class="buff-icon">
+            <span class="icon">🧲</span>
+            <span class="buff-time">0s</span>
+        </div>
+        <div id="buff-shield" class="buff-icon">
+            <span class="icon">🛡️</span>
+            <span class="buff-time">0s</span>
+        </div>
+        <div id="buff-boost" class="buff-icon">
+            <span class="icon">⚡</span>
+            <span class="buff-time">0s</span>
+        </div>
+    </div>
+
+    <div id="boost-btn">
+        <span>⚡</span>
+        <span>衝刺</span>
+    </div>
+
+    <div id="minimap-container" class="hud">
+        <canvas id="minimap" width="120" height="120"></canvas>
+    </div>
+
+    <!-- Start Modal -->
+    <div id="start-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title">等級壓制貪吃蛇</div>
+            <p class="modal-desc">極速流暢優化版！精確部位碰撞與身軀再生長機制。</p>
+            <div class="rules-grid">
+                <div class="rule-card"><span>⚔️ 同等碰撞：</span>同等級碰撞互彈開。</div>
+                <div class="rule-card"><span>🛡️ 小撞大身：</span>小頭撞大身彈開不死亡。</div>
+                <div class="rule-card"><span>✂️ 截斷再生：</span>大撞小身直接截斷，吃光點再生長！</div>
+                <div class="rule-card"><span>💀 頭部對決：</span>大頭撞小頭直接秒殺吞食！</div>
+            </div>
+            <button id="start-btn" class="btn-primary">開始對決 (90s)</button>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="gameover-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div id="gameover-title" class="modal-title">對局結束</div>
+            <p id="gameover-desc" class="modal-desc">你在競技場中的輝煌戰績</p>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-label">最終排名</div>
+                    <div id="final-rank" class="stat-value">#1</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">最高等級</div>
+                    <div id="final-level" class="stat-value">Lv.15</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">淘汰數</div>
+                    <div id="final-kills" class="stat-value">8</div>
+                </div>
+            </div>
+            <button id="restart-btn" class="btn-primary">再戰一局</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * Lightweight Web Audio
+ */
+class SoundEngine {
+    constructor() { this.ctx = null; }
+    init() {
+        if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+    }
+    playTone(freq, type, dur, gainVal) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + dur);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + dur);
+    }
+    playEat() { this.playTone(600, 'sine', 0.05, 0.08); }
+    playBounce() { this.playTone(180, 'triangle', 0.1, 0.15); }
+    playCut() { this.playTone(350, 'sawtooth', 0.15, 0.2); }
+    playKill() { this.playTone(120, 'triangle', 0.25, 0.3); }
+    playLevelUp() {
+        if (!this.ctx) return;
+        [523, 659, 784, 1046].forEach((f, i) => {
+            setTimeout(() => this.playTone(f, 'square', 0.1, 0.06), i * 60);
+        });
+    }
+    playItem() { this.playTone(880, 'sine', 0.15, 0.12); }
+}
+const sounds = new SoundEngine();
+
+/**
+ * Constants & Settings
+ */
+const WORLD_SIZE = 3400;
+const MATCH_DURATION = 90;
+const BASE_SPEED = 3.6;
+const BOOST_SPEED = 6.4;
+const FOOD_COUNT = 400;
+const ITEM_COUNT = 14;
+const AI_COUNT = 14;
+
+const ITEM_TYPES = {
+    MAGNET: { name: '🧲 磁鐵', icon: '🧲', color: '#38bdf8', duration: 7 },
+    SHIELD: { name: '🛡️ 護盾', icon: '🛡️', color: '#fbbf24', duration: 6 },
+    BOOST:  { name: '⚡ 加速', icon: '⚡', color: '#ec4899', duration: 5 }
+};
+
+const BOT_NAMES = [
+    "狂暴獵手", "影之毒牙", "嗜血龍皇", "黃金巨蟒", "虛空行者", 
+    "戰神阿瑞斯", "星空幻影", "爆裂疾風", "雷霆蜥蜴", "深海巨妖",
+    "暗黑破壞神", "極速衝刺王", "獵夢者", "無敵破壞王"
+];
+
+const LEVEL_COLORS = [
+    { max: 5,  head: '#06b6d4', body: '#0891b2' },
+    { max: 10, head: '#10b981', body: '#059669' },
+    { max: 15, head: '#8b5cf6', body: '#6d28d9' },
+    { max: 24, head: '#f59e0b', body: '#d97706' },
+    { max: 999, head: '#ef4444', body: '#b91c1c' }
+];
+
+function getLevelTheme(level) {
+    for (let i = 0; i < LEVEL_COLORS.length; i++) {
+        if (level <= LEVEL_COLORS[i].max) return LEVEL_COLORS[i];
+    }
+    return LEVEL_COLORS[LEVEL_COLORS.length - 1];
+}
+
+/**
+ * Snake Class
+ */
+class Snake {
+    constructor(x, y, name, isPlayer = false, isBoss = false) {
+        this.x = x;
+        this.y = y;
+        this.name = name;
+        this.isPlayer = isPlayer;
+        this.isBoss = isBoss;
+
+        this.level = isBoss ? 25 : (isPlayer ? 1 : Math.floor(Math.random() * 4) + 1);
+        this.exp = 0;
+        this.maxExp = this.calcMaxExp(this.level);
+        this.kills = 0;
+        this.alive = true;
+
+        this.angle = Math.random() * Math.PI * 2;
+        this.targetAngle = this.angle;
+        this.turnSpeed = 0.14;
+
+        this.isManualBoosting = false;
+        this.shieldTimer = 0;
+        this.magnetTimer = 0;
+        this.boostTimer = 0;
+        this.bounceLockTimer = 0;
+
+        this.targetLength = isBoss ? 55 : (14 + this.level * 4);
+        this.body = [];
+        this.initBody();
+
+        this.aiChangeDirTimer = 0;
+    }
+
+    calcMaxExp(level) {
+        return Math.floor(12 + level * 8 + Math.pow(level, 1.2) * 3);
+    }
+
+    getRadius() {
+        if (this.isBoss) return 36;
+        return 14 + Math.min(this.level * 0.85, 26);
+    }
+
+    initBody() {
+        const len = Math.floor(this.targetLength);
+        this.body = [];
+        for (let i = 0; i < len; i++) {
+            this.body.push({ x: this.x - i * 8, y: this.y });
+        }
+    }
+
+    getSpeed() {
+        let speed = (this.boostTimer > 0 || this.isManualBoosting) ? BOOST_SPEED : BASE_SPEED;
+        if (this.isBoss) speed *= 0.92;
+        return speed;
+    }
+
+    addExp(amount) {
+        this.exp += amount;
+        this.targetLength += amount * 0.35; // Regrowth & continuous growth
+
+        while (this.exp >= this.maxExp) {
+            this.exp -= this.maxExp;
+            this.level++;
+            this.maxExp = this.calcMaxExp(this.level);
+            this.targetLength += 3;
+
+            if (this.isPlayer) {
+                sounds.playLevelUp();
+                createFloatingText(this.x, this.y - 40, `LEVEL UP! Lv.${this.level}`, '#facc15', 22);
+                createParticles(this.x, this.y, 16, '#facc15');
+            }
+        }
+    }
+
+    truncate(hitIndex, attacker) {
+        if (hitIndex < 2) {
+            eliminateSnake(this, attacker);
+            return;
+        }
+
+        const severed = this.body.splice(hitIndex);
+        this.targetLength = this.body.length; // Lock to truncated length
+
+        for (let i = 0; i < severed.length; i += 2) {
+            spawnFood(2, true, severed[i]);
+        }
+
+        sounds.playCut();
+        createParticles(this.x, this.y, 14, '#f59e0b', 10);
+        createFloatingText(this.x, this.y - 30, `✂️ 截斷!`, '#ef4444', 16);
+
+        if (this.isPlayer) {
+            showAlert(`⚠️ 身體被截斷！失去 ${severed.length} 節身軀，快吃光點重新生長！`);
+        }
+    }
+
+    bounceAway(fromX, fromY, force = 28) {
+        const bAngle = Math.atan2(this.y - fromY, this.x - fromX);
+        this.x += Math.cos(bAngle) * force;
+        this.y += Math.sin(bAngle) * force;
+        this.angle = bAngle;
+        this.targetAngle = bAngle;
+        this.bounceLockTimer = 0.3;
+        sounds.playBounce();
+    }
+
+    update(dt) {
+        if (!this.alive) return;
+
+        if (this.shieldTimer > 0) this.shieldTimer -= dt;
+        if (this.magnetTimer > 0) this.magnetTimer -= dt;
+        if (this.boostTimer > 0) this.boostTimer -= dt;
+        if (this.bounceLockTimer > 0) this.bounceLockTimer -= dt;
+
+        if (this.bounceLockTimer <= 0) {
+            let diff = this.targetAngle - this.angle;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            this.angle += diff * this.turnSpeed;
+        }
+
+        const currentSpeed = this.getSpeed();
+        this.x += Math.cos(this.angle) * currentSpeed;
+        this.y += Math.sin(this.angle) * currentSpeed;
+
+        // Boundary constraint
+        const margin = 40;
+        if (this.x < margin) { this.x = margin; this.targetAngle = 0; }
+        if (this.x > WORLD_SIZE - margin) { this.x = WORLD_SIZE - margin; this.targetAngle = Math.PI; }
+        if (this.y < margin) { this.y = margin; this.targetAngle = Math.PI / 2; }
+        if (this.y > WORLD_SIZE - margin) { this.y = WORLD_SIZE - margin; this.targetAngle = -Math.PI / 2; }
+
+        // Dynamic Growth
+        const reqLen = Math.floor(this.targetLength);
+        if (this.body.length < reqLen) {
+            const last = this.body[this.body.length - 1] || { x: this.x, y: this.y };
+            this.body.push({ x: last.x, y: last.y });
+        }
+
+        // Body segments following logic
+        const segSpacing = Math.max(5, this.getRadius() * 0.52);
+        let prevX = this.x;
+        let prevY = this.y;
+
+        for (let i = 0; i < this.body.length; i++) {
+            let seg = this.body[i];
+            let dx = prevX - seg.x;
+            let dy = prevY - seg.y;
+            let distSq = dx * dx + dy * dy;
+            if (distSq > segSpacing * segSpacing) {
+                let dist = Math.sqrt(distSq);
+                seg.x = prevX - (dx / dist) * segSpacing;
+                seg.y = prevY - (dy / dist) * segSpacing;
+            }
+            prevX = seg.x;
+            prevY = seg.y;
+        }
+    }
+
+    aiUpdate(snakes, foods, items, dt) {
+        if (this.isPlayer || !this.alive || this.bounceLockTimer > 0) return;
+
+        this.aiChangeDirTimer -= dt;
+        if (this.isBoss) {
+            let p = snakes[0]; // Player is index 0
+            if (p && p.alive) {
+                this.targetAngle = Math.atan2(p.y - this.y, p.x - this.x);
+            }
+            return;
+        }
+
+        if (this.aiChangeDirTimer <= 0) {
+            this.aiChangeDirTimer = 0.5 + Math.random() * 0.5;
+
+            let nearestThreat = null;
+            let threatDistSq = 250 * 250;
+            let nearestPrey = null;
+            let preyDistSq = 280 * 280;
+
+            for (let i = 0; i < snakes.length; i++) {
+                const other = snakes[i];
+                if (other === this || !other.alive) continue;
+                let dx = other.x - this.x;
+                let dy = other.y - this.y;
+                let dSq = dx * dx + dy * dy;
+
+                if (other.level > this.level && !this.shieldTimer) {
+                    if (dSq < threatDistSq) {
+                        threatDistSq = dSq;
+                        nearestThreat = other;
+                    }
+                } else if (this.level > other.level || this.shieldTimer > 0) {
+                    if (dSq < preyDistSq) {
+                        preyDistSq = dSq;
+                        nearestPrey = other;
+                    }
+                }
+            }
+
+            if (nearestThreat) {
+                this.targetAngle = Math.atan2(this.y - nearestThreat.y, this.x - nearestThreat.x);
+                this.isManualBoosting = (threatDistSq < 150 * 150);
+                return;
+            }
+
+            if (nearestPrey) {
+                this.targetAngle = Math.atan2(nearestPrey.y - this.y, nearestPrey.x - this.x);
+                this.isManualBoosting = (preyDistSq < 180 * 180 && Math.random() < 0.5);
+                return;
+            }
+
+            this.isManualBoosting = false;
+
+            // Food search
+            let nearestFood = null;
+            let fDistSq = 160 * 160;
+            for (let i = 0; i < foods.length; i += 2) { // Sampling step for AI performance
+                let f = foods[i];
+                let dx = f.x - this.x;
+                let dy = f.y - this.y;
+                let dSq = dx * dx + dy * dy;
+                if (dSq < fDistSq) {
+                    fDistSq = dSq;
+                    nearestFood = f;
+                }
+            }
+            if (nearestFood) {
+                this.targetAngle = Math.atan2(nearestFood.y - this.y, nearestFood.x - this.x);
+            } else {
+                this.targetAngle += (Math.random() - 0.5) * 1.4;
+            }
+        }
+    }
+
+    draw(ctx, camera, viewW, viewH) {
+        if (!this.alive) return;
+
+        const rad = this.getRadius();
+        const theme = getLevelTheme(this.level);
+        const pad = rad * 2;
+
+        // Viewport culling check for head
+        const hScrX = this.x - camera.x;
+        const hScrY = this.y - camera.y;
+
+        // 1. Draw Body
+        ctx.fillStyle = this.isBoss ? '#b45309' : (this.isPlayer ? '#2563eb' : theme.body);
+        for (let i = this.body.length - 1; i >= 0; i--) {
+            const seg = this.body[i];
+            const scrX = seg.x - camera.x;
+            const scrY = seg.y - camera.y;
+
+            // Culling for each segment
+            if (scrX < -pad || scrX > viewW + pad || scrY < -pad || scrY > viewH + pad) continue;
+
+            const segRad = rad * (1 - (i / Math.max(1, this.body.length)) * 0.4);
+            ctx.beginPath();
+            ctx.arc(scrX, scrY, segRad, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Check if head is visible
+        if (hScrX < -pad || hScrX > viewW + pad || hScrY < -pad || hScrY > viewH + pad) return;
+
+        // Shield Aura
+        if (this.shieldTimer > 0) {
+            ctx.beginPath();
+            ctx.arc(hScrX, hScrY, rad * 1.6, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(251, 191, 36, 0.2)';
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+            ctx.fill();
+        }
+
+        // Head
+        ctx.beginPath();
+        ctx.arc(hScrX, hScrY, rad, 0, Math.PI * 2);
+        ctx.fillStyle = this.isBoss ? '#f59e0b' : (this.isPlayer ? '#3b82f6' : theme.head);
+        ctx.fill();
+
+        // Eyes
+        const eyeDist = rad * 0.65;
+        const ea1 = this.angle + 0.65;
+        const ea2 = this.angle - 0.65;
+
+        [ea1, ea2].forEach(ea => {
+            const ex = hScrX + Math.cos(ea) * eyeDist;
+            const ey = hScrY + Math.sin(ea) * eyeDist;
+            ctx.beginPath();
+            ctx.arc(ex, ey, rad * 0.28, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(ex + Math.cos(this.angle) * 2, ey + Math.sin(this.angle) * 2, rad * 0.14, 0, Math.PI * 2);
+            ctx.fillStyle = '#000';
+            ctx.fill();
+        });
+
+        // Floating level badge
+        const badgeY = hScrY - rad - 18;
+        const badgeText = `Lv.${this.level} ${this.name}`;
+        
+        ctx.font = 'bold 11px sans-serif';
+        const textW = ctx.measureText(badgeText).width;
+        
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+        ctx.fillRect(hScrX - textW/2 - 6, badgeY - 10, textW + 12, 18);
+        ctx.strokeStyle = this.isBoss ? '#f59e0b' : theme.head;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(hScrX - textW/2 - 6, badgeY - 10, textW + 12, 18);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(badgeText, hScrX, badgeY);
+
+        if (this.isBoss) {
+            ctx.font = '22px sans-serif';
+            ctx.fillText('👑', hScrX, badgeY - 18);
+        }
+    }
+}
+
+/**
+ * Particles & Texts
+ */
+let particles = [];
+let floatingTexts = [];
+
+function createParticles(x, y, count = 8, color = '#38bdf8', size = 6) {
+    for (let i = 0; i < count; i++) {
+        const speed = 1.5 + Math.random() * 3.5;
+        const angle = Math.random() * Math.PI * 2;
+        particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            color,
+            size,
+            life: 1,
+            decay: 0.03 + Math.random() * 0.03
+        });
+    }
+}
+
+function createFloatingText(x, y, text, color = '#facc15', size = 15) {
+    floatingTexts.push({ x, y, text, color, size, life: 1, vy: -1.2 });
+}
+
+/**
+ * Game Setup
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const minimapCanvas = document.getElementById('minimap');
+const mmCtx = minimapCanvas.getContext('2d');
+
+let gameRunning = false;
+let gameTimeRemaining = MATCH_DURATION;
+let bossSpawned = false;
+let uiThrottleTimer = 0;
+
+let player = null;
+let snakes = [];
+let foods = [];
+let items = [];
+let camera = { x: 0, y: 0 };
+let mousePos = { x: 0, y: 0 };
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function spawnFood(count, isRemnant = false, centerPos = null) {
+    for (let i = 0; i < count; i++) {
+        let x, y;
+        if (centerPos) {
+            const spread = 15 + Math.random() * 50;
+            const a = Math.random() * Math.PI * 2;
+            x = Math.max(20, Math.min(WORLD_SIZE - 20, centerPos.x + Math.cos(a) * spread));
+            y = Math.max(20, Math.min(WORLD_SIZE - 20, centerPos.y + Math.sin(a) * spread));
+        } else {
+            x = Math.random() * WORLD_SIZE;
+            y = Math.random() * WORLD_SIZE;
+        }
+
+        const expValue = isRemnant ? (Math.floor(Math.random() * 15) + 12) : (Math.floor(Math.random() * 3) + 1);
+        const radius = isRemnant ? 6.5 : (2.5 + expValue * 0.7);
+        const colors = ['#f43f5e', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'];
+        const color = isRemnant ? '#fde047' : colors[Math.floor(Math.random() * colors.length)];
+
+        foods.push({ x, y, radius, expValue, color, isRemnant });
+    }
+}
+
+function spawnItem() {
+    const types = [ITEM_TYPES.MAGNET, ITEM_TYPES.SHIELD, ITEM_TYPES.BOOST];
+    const type = types[Math.floor(Math.random() * types.length)];
+    items.push({
+        x: Math.random() * (WORLD_SIZE - 200) + 100,
+        y: Math.random() * (WORLD_SIZE - 200) + 100,
+        type: type,
+        radius: 16
+    });
+}
+
+function spawnBot(isBoss = false) {
+    const x = Math.random() * (WORLD_SIZE - 400) + 200;
+    const y = Math.random() * (WORLD_SIZE - 400) + 200;
+    const name = isBoss ? "⚔️ 泰坦首領" : BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+    const bot = new Snake(x, y, name, false, isBoss);
+    snakes.push(bot);
+    return bot;
+}
+
+function initGame() {
+    gameTimeRemaining = MATCH_DURATION;
+    bossSpawned = false;
+    particles = [];
+    floatingTexts = [];
+    foods = [];
+    items = [];
+    snakes = [];
+
+    player = new Snake(WORLD_SIZE / 2, WORLD_SIZE / 2, "你", true);
+    snakes.push(player);
+
+    spawnFood(FOOD_COUNT);
+    for (let i = 0; i < ITEM_COUNT; i++) spawnItem();
+    for (let i = 0; i < AI_COUNT; i++) spawnBot();
+
+    updateHUD();
+}
+
+let alertTimeout = null;
+function showAlert(text) {
+    const el = document.getElementById('alert-banner');
+    el.innerText = text;
+    el.classList.add('show');
+    if (alertTimeout) clearTimeout(alertTimeout);
+    alertTimeout = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+/**
+ * Fast Collision (Squared Distance Math)
+ */
+function handleCollisions() {
+    const pHead = { x: player.x, y: player.y };
+    const pRadius = player.getRadius();
+    const magRadiusSq = player.magnetTimer > 0 ? (340 * 340) : ((pRadius + 15) * (pRadius + 15));
+
+    // 1. Food Collision
+    for (let i = foods.length - 1; i >= 0; i--) {
+        const f = foods[i];
+        
+        // Magnet pull
+        if (player.alive) {
+            const dx = pHead.x - f.x;
+            const dy = pHead.y - f.y;
+            const dSq = dx * dx + dy * dy;
+
+            if (dSq < magRadiusSq) {
+                const dist = Math.sqrt(dSq);
+                f.x += (dx / dist) * 11;
+                f.y += (dy / dist) * 11;
+            }
+        }
+
+        // Snake eating
+        for (let sIdx = 0; sIdx < snakes.length; sIdx++) {
+            const s = snakes[sIdx];
+            if (!s.alive) continue;
+            const dx = s.x - f.x;
+            const dy = s.y - f.y;
+            const hitDist = s.getRadius() + f.radius + 4;
+
+            if (dx * dx + dy * dy < hitDist * hitDist) {
+                s.addExp(f.expValue);
+                if (s.isPlayer) sounds.playEat();
+                foods.splice(i, 1);
+                break;
+            }
+        }
+    }
+
+    if (foods.length < FOOD_COUNT) {
+        spawnFood(FOOD_COUNT - foods.length);
+    }
+
+    // 2. Item Collision
+    for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i];
+        for (let sIdx = 0; sIdx < snakes.length; sIdx++) {
+            const s = snakes[sIdx];
+            if (!s.alive) continue;
+            const dx = s.x - it.x;
+            const dy = s.y - it.y;
+            const hitDist = s.getRadius() + it.radius;
+
+            if (dx * dx + dy * dy < hitDist * hitDist) {
+                if (it.type === ITEM_TYPES.MAGNET) s.magnetTimer = it.type.duration;
+                if (it.type === ITEM_TYPES.SHIELD) s.shieldTimer = it.type.duration;
+                if (it.type === ITEM_TYPES.BOOST) s.boostTimer = it.type.duration;
+
+                if (s.isPlayer) {
+                    sounds.playItem();
+                    showAlert(`獲得道具：${it.type.name}！`);
+                    createFloatingText(s.x, s.y - 30, `${it.type.name}!`, it.type.color, 18);
+                }
+                createParticles(it.x, it.y, 15, it.type.color);
+                items.splice(i, 1);
+                break;
+            }
+        }
+    }
+
+    if (items.length < ITEM_COUNT) spawnItem();
+
+    // 3. Snake vs Snake Collision
+    for (let i = 0; i < snakes.length; i++) {
+        const atk = snakes[i];
+        if (!atk.alive) continue;
+
+        for (let j = 0; j < snakes.length; j++) {
+            if (i === j) continue;
+            const def = snakes[j];
+            if (!def.alive) continue;
+
+            const atkLevel = atk.shieldTimer > 0 ? 9999 : atk.level;
+            const defLevel = def.shieldTimer > 0 ? 9999 : def.level;
+
+            // Head-to-Head
+            const hdx = atk.x - def.x;
+            const hdy = atk.y - def.y;
+            const minHeadDist = (atk.getRadius() + def.getRadius()) * 0.88;
+
+            if (hdx * hdx + hdy * hdy < minHeadDist * minHeadDist) {
+                if (atk.bounceLockTimer > 0 || def.bounceLockTimer > 0) continue;
+
+                if (atkLevel === defLevel) {
+                    atk.bounceAway(def.x, def.y);
+                    def.bounceAway(atk.x, atk.y);
+                } else if (atkLevel > defLevel) {
+                    eliminateSnake(def, atk);
+                } else {
+                    eliminateSnake(atk, def);
+                }
+                break;
+            }
+
+            // Head-to-Body
+            let bodyHitIndex = -1;
+            const atkRad = atk.getRadius();
+            const defRad = def.getRadius();
+            const hitDistSq = (atkRad + defRad * 0.55) * (atkRad + defRad * 0.55);
+
+            for (let sIdx = 1; sIdx < def.body.length; sIdx++) {
+                const seg = def.body[sIdx];
+                const bdx = atk.x - seg.x;
+                const bdy = atk.y - seg.y;
+                if (bdx * bdx + bdy * bdy < hitDistSq) {
+                    bodyHitIndex = sIdx;
+                    break;
+                }
+            }
+
+            if (bodyHitIndex !== -1) {
+                if (atk.bounceLockTimer > 0) continue;
+                const hitSeg = def.body[bodyHitIndex];
+
+                if (atkLevel === defLevel) {
+                    atk.bounceAway(hitSeg.x, hitSeg.y);
+                } else if (atkLevel < defLevel) {
+                    atk.bounceAway(hitSeg.x, hitSeg.y);
+                } else {
+                    def.truncate(bodyHitIndex, atk);
+                    atk.addExp(25);
+                }
+                break;
+            }
+        }
+    }
+}
+
+function eliminateSnake(victim, killer) {
+    if (!victim.alive) return;
+    victim.alive = false;
+
+    const dropCount = Math.min(20, 6 + victim.level * 2);
+    spawnFood(dropCount, true, { x: victim.x, y: victim.y });
+    for (let i = 0; i < victim.body.length; i += 3) {
+        spawnFood(2, true, victim.body[i]);
+    }
+
+    createParticles(victim.x, victim.y, 30, '#ef4444', 12);
+
+    if (killer) {
+        killer.kills++;
+        killer.addExp(victim.level * 22 + 18);
+        if (killer.isPlayer) {
+            sounds.playKill();
+            showAlert(`⚔️ 成功吞食擊殺 [Lv.${victim.level} ${victim.name}]！`);
+            createFloatingText(victim.x, victim.y - 20, `+${victim.level * 22} EXP`, '#10b981', 20);
+        }
+    }
+
+    if (victim.isPlayer) {
+        sounds.playKill();
+        endGame(false);
+    } else if (!victim.isBoss) {
+        setTimeout(() => { if (gameRunning) spawnBot(); }, 3000);
+    }
+}
+
+/**
+ * Throttled HUD Update (Every 200ms)
+ */
+function updateHUD() {
+    if (!player) return;
+
+    document.getElementById('player-level-badge').innerText = `Lv. ${player.level}`;
+    document.getElementById('player-kills').innerText = player.kills;
+    const expRatio = Math.min(100, (player.exp / player.maxExp) * 100);
+    document.getElementById('exp-bar-fill').style.width = `${expRatio}%`;
+
+    const mins = Math.floor(gameTimeRemaining / 60);
+    const secs = Math.floor(gameTimeRemaining % 60);
+    document.getElementById('timer-text').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+    const updateBuff = (id, timer) => {
+        const el = document.getElementById(id);
+        if (timer > 0) {
+            el.classList.add('active');
+            el.querySelector('.buff-time').innerText = `${Math.ceil(timer)}s`;
+        } else {
+            el.classList.remove('active');
+        }
+    };
+    updateBuff('buff-magnet', player.magnetTimer);
+    updateBuff('buff-shield', player.shieldTimer);
+    updateBuff('buff-boost', player.boostTimer);
+
+    // Leaderboard
+    const sorted = [...snakes].filter(s => s.alive).sort((a, b) => (b.level * 1000 + b.exp) - (a.level * 1000 + a.exp));
+    const lbContainer = document.getElementById('lb-list');
+    lbContainer.innerHTML = '';
+    sorted.slice(0, 5).forEach((s, idx) => {
+        const row = document.createElement('div');
+        row.className = `lb-item ${s.isPlayer ? 'is-player' : ''}`;
+        row.innerHTML = `<span>#${idx+1}</span><span class="lb-name">${s.name}</span><span class="lb-level">Lv.${s.level}</span>`;
+        lbContainer.appendChild(row);
+    });
+
+    // Minimap update
+    mmCtx.clearRect(0, 0, 120, 120);
+    const scale = 120 / WORLD_SIZE;
+    snakes.forEach(s => {
+        if (!s.alive) return;
+        mmCtx.beginPath();
+        mmCtx.fillStyle = s.isBoss ? '#ef4444' : (s.isPlayer ? '#38bdf8' : 'rgba(255,255,255,0.4)');
+        mmCtx.arc(s.x * scale, s.y * scale, s.isBoss ? 4 : (s.isPlayer ? 3.5 : 2), 0, Math.PI * 2);
+        mmCtx.fill();
+    });
+}
+
+/**
+ * Main Game Loop (60 FPS)
+ */
+let lastTime = performance.now();
+
+function gameLoop(now) {
+    if (!gameRunning) return;
+
+    const dt = Math.min((now - lastTime) / 1000, 0.1);
+    lastTime = now;
+
+    gameTimeRemaining -= dt;
+    if (gameTimeRemaining <= 45 && !bossSpawned) {
+        bossSpawned = true;
+        spawnBot(true);
+        showAlert('⚠️ 警告：泰坦首領降臨！');
+    }
+
+    if (gameTimeRemaining <= 0) {
+        endGame(true);
+        return;
+    }
+
+    // Input direction
+    if (player && player.alive) {
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        if (player.bounceLockTimer <= 0) {
+            player.targetAngle = Math.atan2(mousePos.y - cy, mousePos.x - cx);
+        }
+        player.update(dt);
+        camera.x = player.x - cx;
+        camera.y = player.y - cy;
+    }
+
+    // AI
+    for (let i = 0; i < snakes.length; i++) {
+        if (!snakes[i].isPlayer) {
+            snakes[i].aiUpdate(snakes, foods, items, dt);
+            snakes[i].update(dt);
+        }
+    }
+
+    handleCollisions();
+
+    // ----------------- OPTIMIZED RENDER -----------------
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // 1. Batched Grid Draw
+    const gridSize = 70;
+    const startX = -(camera.x % gridSize);
+    const startY = -(camera.y % gridSize);
+
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+    ctx.lineWidth = 1;
+    for (let x = startX; x < w; x += gridSize) {
+        ctx.moveTo(x, 0); ctx.lineTo(x, h);
+    }
+    for (let y = startY; y < h; y += gridSize) {
+        ctx.moveTo(0, y); ctx.lineTo(w, y);
+    }
+    ctx.stroke();
+
+    // 2. World Boundary
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-camera.x, -camera.y, WORLD_SIZE, WORLD_SIZE);
+
+    // 3. Foods (With Viewport Culling)
+    for (let i = 0; i < foods.length; i++) {
+        const f = foods[i];
+        const sx = f.x - camera.x;
+        const sy = f.y - camera.y;
+        if (sx < -10 || sx > w + 10 || sy < -10 || sy > h + 10) continue;
+
+        ctx.beginPath();
+        ctx.arc(sx, sy, f.radius, 0, Math.PI * 2);
+        ctx.fillStyle = f.color;
+        ctx.fill();
+    }
+
+    // 4. Items
+    for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        const sx = it.x - camera.x;
+        const sy = it.y - camera.y;
+        if (sx < -20 || sx > w + 20 || sy < -20 || sy > h + 20) continue;
+
+        ctx.beginPath();
+        ctx.arc(sx, sy, it.radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+        ctx.strokeStyle = it.type.color;
+        ctx.lineWidth = 2;
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(it.type.icon, sx, sy);
+    }
+
+    // 5. Snakes
+    for (let i = 0; i < snakes.length; i++) {
+        snakes[i].draw(ctx, camera, w, h);
+    }
+
+    // 6. Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= p.decay;
+        if (p.life <= 0) {
+            particles.splice(i, 1);
+            continue;
+        }
+        ctx.beginPath();
+        ctx.arc(p.x - camera.x, p.y - camera.y, p.size * p.life, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life;
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // 7. Floating text
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y += ft.vy;
+        ft.life -= 0.025;
+        if (ft.life <= 0) {
+            floatingTexts.splice(i, 1);
+            continue;
+        }
+        ctx.font = `bold ${ft.size}px sans-serif`;
+        ctx.fillStyle = ft.color;
+        ctx.globalAlpha = ft.life;
+        ctx.textAlign = 'center';
+        ctx.fillText(ft.text, ft.x - camera.x, ft.y - camera.y);
+    }
+    ctx.globalAlpha = 1;
+
+    // Throttled HUD update
+    uiThrottleTimer += dt;
+    if (uiThrottleTimer >= 0.2) { // 5 times / sec
+        uiThrottleTimer = 0;
+        updateHUD();
+    }
+
+    requestAnimationFrame(gameLoop);
+}
+
+function endGame(isTimeUp) {
+    gameRunning = false;
+    const sorted = [...snakes].sort((a, b) => (b.level * 1000 + b.exp) - (a.level * 1000 + a.exp));
+    const rank = sorted.findIndex(s => s === player) + 1;
+
+    document.getElementById('final-rank').innerText = `#${rank}`;
+    document.getElementById('final-level').innerText = `Lv.${player.level}`;
+    document.getElementById('final-kills').innerText = player.kills;
+
+    const titleEl = document.getElementById('gameover-title');
+    const descEl = document.getElementById('gameover-desc');
+
+    if (isTimeUp) {
+        titleEl.innerText = rank === 1 ? "🏆 榮登王者第一名！" : "⏰ 時間到！";
+        descEl.innerText = `恭喜榮獲第 ${rank} 名！`;
+    } else {
+        titleEl.innerText = "💀 遭到正面吞食！";
+        descEl.innerText = "正面撞上高等級強者，下次再接再厲！";
+    }
+
+    document.getElementById('gameover-modal').classList.remove('hidden');
+}
+
+/**
+ * Controls
+ */
+window.addEventListener('mousemove', (e) => {
+    mousePos.x = e.clientX;
+    mousePos.y = e.clientY;
+});
+window.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 0) {
+        mousePos.x = e.touches[0].clientX;
+        mousePos.y = e.touches[0].clientY;
+    }
+}, { passive: false });
+window.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 0) {
+        mousePos.x = e.touches[0].clientX;
+        mousePos.y = e.touches[0].clientY;
+    }
+}, { passive: false });
+
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && player) player.isManualBoosting = true;
+});
+window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space' && player) player.isManualBoosting = false;
+});
+
+const boostBtn = document.getElementById('boost-btn');
+boostBtn.addEventListener('mousedown', (e) => { e.preventDefault(); if (player) player.isManualBoosting = true; });
+boostBtn.addEventListener('mouseup', (e) => { e.preventDefault(); if (player) player.isManualBoosting = false; });
+boostBtn.addEventListener('touchstart', (e) => { e.preventDefault(); if (player) player.isManualBoosting = true; });
+boostBtn.addEventListener('touchend', (e) => { e.preventDefault(); if (player) player.isManualBoosting = false; });
+
+document.getElementById('start-btn').addEventListener('click', () => {
+    sounds.init();
+    document.getElementById('start-modal').classList.add('hidden');
+    initGame();
+    gameRunning = true;
+    lastTime = performance.now();
+    requestAnimationFrame(gameLoop);
+});
+
+document.getElementById('restart-btn').addEventListener('click', () => {
+    document.getElementById('gameover-modal').classList.add('hidden');
+    initGame();
+    gameRunning = true;
+    lastTime = performance.now();
+    requestAnimationFrame(gameLoop);
+});
+
+mousePos = { x: window.innerWidth / 2, y: window.innerHeight / 2 - 50 };
+</script>
+</body>
+</html>
