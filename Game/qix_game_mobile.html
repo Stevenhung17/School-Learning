@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>天蠶變 - 平板觸控版</title>
+  <style>
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    body {
+      background: #0f172a;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 10px;
+      touch-action: manipulation;
+    }
+    #ui {
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: #1e293b;
+      padding: 8px 14px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+      max-width: 600px;
+      width: 100%;
+    }
+    .stat-val { color: #38bdf8; }
+    .score-val { color: #f59e0b; }
+    .time-val { color: #10b981; }
+    #game-container {
+      position: relative;
+      border: 3px solid #334155;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      touch-action: none;
+    }
+    canvas { 
+      display: block; 
+      background: #000;
+      max-width: 100%;
+      height: auto;
+    }
+    #overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      z-index: 10;
+      text-align: center;
+      padding: 20px;
+    }
+    #overlay.hidden { display: none; }
+    #overlay-title { font-size: 24px; font-weight: bold; }
+    #overlay-desc { font-size: 14px; color: #94a3b8; line-height: 1.5; }
+    .score-table {
+      margin: 6px 0;
+      font-size: 13px;
+      color: #cbd5e1;
+      text-align: left;
+    }
+    .score-table td { padding: 2px 6px; }
+    .btn {
+      padding: 10px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      background: #2563eb;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:active { background: #1d4ed8; }
+    .btn-reset {
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #f87171;
+      background: #334155;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn-reset:active {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    /* 虛擬方向鍵控制盤 */
+    #touch-controls {
+      display: grid;
+      grid-template-columns: repeat(3, 62px);
+      grid-template-rows: repeat(3, 56px);
+      gap: 6px;
+      margin-top: 10px;
+      touch-action: none;
+    }
+    .dpad-btn {
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 10px;
+      color: #f8fafc;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      cursor: pointer;
+      user-select: none;
+    }
+    .dpad-btn:active, .dpad-btn.active {
+      background: #2563eb;
+      border-color: #60a5fa;
+      transform: scale(0.95);
+    }
+    #btn-up    { grid-column: 2; grid-row: 1; }
+    #btn-left  { grid-column: 1; grid-row: 2; }
+    #btn-right { grid-column: 3; grid-row: 2; }
+    #btn-down  { grid-column: 2; grid-row: 3; }
+  </style>
+</head>
+<body>
+
+  <div id="ui">
+    <div>總分: <span id="score-text" class="score-val">0</span></div>
+    <div>時間: <span id="time-text" class="time-val">90s</span></div>
+    <div>關卡: <span id="level-text" class="stat-val">1 / 6</span></div>
+    <div>進度: <span id="progress-text" class="stat-val">0%</span></div>
+    <div>目標: <span id="target-text" class="stat-val">75%</span></div>
+    <button id="restart-game-btn" class="btn-reset">🔄 重新開始</button>
+  </div>
+
+  <div id="game-container">
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
+    
+    <div id="overlay">
+      <div id="overlay-title">準備開始</div>
+      <div id="overlay-desc">點擊下方方向鍵或使用鍵盤開始圈地</div>
+      <div id="overlay-extra"></div>
+      <button id="overlay-btn" class="btn">開始挑戰</button>
+    </div>
+  </div>
+
+  <!-- 虛擬按鍵區 -->
+  <div id="touch-controls">
+    <button id="btn-up" class="dpad-btn">▲</button>
+    <button id="btn-left" class="dpad-btn">◀</button>
+    <button id="btn-right" class="dpad-btn">▶</button>
+    <button id="btn-down" class="dpad-btn">▼</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const scoreText = document.getElementById('score-text');
+    const timeText = document.getElementById('time-text');
+    const levelText = document.getElementById('level-text');
+    const progressText = document.getElementById('progress-text');
+    const targetText = document.getElementById('target-text');
+    const restartGameBtn = document.getElementById('restart-game-btn');
+    const overlay = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlay-title');
+    const overlayDesc = document.getElementById('overlay-desc');
+    const overlayExtra = document.getElementById('overlay-extra');
+    const overlayBtn = document.getElementById('overlay-btn');
+
+    const STAGES = [
+      { level: 1, target: 75, enemies: 1, timeLimit: 90, label: "第一關" },
+      { level: 2, target: 80, enemies: 1, timeLimit: 90, label: "第二關" },
+      { level: 3, target: 80, enemies: 2, timeLimit: 90, label: "第三關" },
+      { level: 4, target: 90, enemies: 1, timeLimit: 100, label: "第四關" },
+      { level: 5, target: 90, enemies: 2, timeLimit: 100, label: "第五關" },
+      { level: 6, target: 95, enemies: 3, timeLimit: 120, label: "最終關" }
+    ];
+
+    const CELL_SIZE = 5;
+    const COLS = canvas.width / CELL_SIZE;  // 120
+    const ROWS = canvas.height / CELL_SIZE; // 80
+    const TOTAL_CELLS = COLS * ROWS;
+
+    const UNCLAIMED = 0;
+    const CLAIMED = 1;
+    const TRAIL = 2;
+
+    let currentStageIndex = 0;
+    let grid = [];
+    let trailCells = [];
+    let enemies = [];
+    let isRunning = false;
+    let currentPct = 0;
+
+    let totalScore = 0;
+    let stageAreaScore = 0;
+    let timeLeft = 0;
+    let lastTimestamp = 0;
+
+    const bgImage = new Image();
+    bgImage.crossOrigin = 'anonymous';
+
+    const player = {
+      x: 0,
+      y: 0,
+      isDrawing: false
+    };
+
+    function loadRandomBackground() {
+      const seed = Math.floor(Math.random() * 100000);
+      bgImage.src = `https://picsum.photos/seed/${seed}/600/400`;
+    }
+
+    function initStage(stageIdx) {
+      currentStageIndex = stageIdx;
+      const stage = STAGES[currentStageIndex];
+
+      levelText.textContent = `${stage.level} / ${STAGES.length}`;
+      targetText.textContent = `${stage.target}%`;
+      timeLeft = stage.timeLimit;
+      stageAreaScore = 0;
+      updateDisplayScore();
+
+      grid = [];
+      for (let r = 0; r < ROWS; r++) {
+        grid[r] = [];
+        for (let c = 0; c < COLS; c++) {
+          if (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1) {
+            grid[r][c] = CLAIMED;
+          } else {
+            grid[r][c] = UNCLAIMED;
+          }
+        }
+      }
+
+      player.x = 0;
+      player.y = 0;
+      player.isDrawing = false;
+      trailCells = [];
+
+      enemies = [];
+      for (let i = 0; i < stage.enemies; i++) {
+        const offsetAngle = (i / stage.enemies) * Math.PI * 2;
+        enemies.push({
+          x: COLS / 2 + Math.cos(offsetAngle) * 10,
+          y: ROWS / 2 + Math.sin(offsetAngle) * 10,
+          vx: (Math.random() > 0.5 ? 0.6 : -0.6) * (1 + i * 0.1),
+          vy: (Math.random() > 0.5 ? 0.5 : -0.5) * (1 + i * 0.1),
+          radius: 6
+        });
+      }
+
+      loadRandomBackground();
+      calculateProgress(false);
+    }
+
+    function updateDisplayScore() {
+      scoreText.textContent = (totalScore + stageAreaScore).toLocaleString();
+      timeText.textContent = `${Math.ceil(timeLeft)}s`;
+    }
+
+    function calculateProgress(checkWin = true) {
+      let claimedCount = 0;
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (grid[r][c] === CLAIMED) claimedCount++;
+        }
+      }
+      currentPct = Math.floor((claimedCount / TOTAL_CELLS) * 100);
+      progressText.textContent = currentPct + '%';
+
+      const target = STAGES[currentStageIndex].target;
+      if (checkWin && currentPct >= target && isRunning) {
+        handleStageClear();
+      }
+      return claimedCount;
+    }
+
+    function resolveCapture() {
+      const prevClaimed = calculateProgress(false);
+
+      for (const cell of trailCells) {
+        grid[cell.r][cell.c] = CLAIMED;
+      }
+      trailCells = [];
+      player.isDrawing = false;
+
+      const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+      const queue = [];
+
+      for (const en of enemies) {
+        const startR = Math.min(ROWS - 1, Math.max(0, Math.floor(en.y)));
+        const startC = Math.min(COLS - 1, Math.max(0, Math.floor(en.x)));
+        if (grid[startR][startC] === UNCLAIMED && !visited[startR][startC]) {
+          visited[startR][startC] = true;
+          queue.push([startR, startC]);
+        }
+      }
+
+      const dr = [-1, 1, 0, 0];
+      const dc = [0, 0, -1, 1];
+
+      while (queue.length > 0) {
+        const [cr, cc] = queue.shift();
+        for (let i = 0; i < 4; i++) {
+          const nr = cr + dr[i];
+          const nc = cc + dc[i];
+          if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+            if (!visited[nr][nc] && grid[nr][nc] === UNCLAIMED) {
+              visited[nr][nc] = true;
+              queue.push([nr, nc]);
+            }
+          }
+        }
+      }
+
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (grid[r][c] === UNCLAIMED && !visited[r][c]) {
+            grid[r][c] = CLAIMED;
+          }
+        }
+      }
+
+      const newClaimed = calculateProgress(false);
+      const deltaCells = newClaimed - prevClaimed;
+
+      if (deltaCells > 0) {
+        const captureRatio = deltaCells / TOTAL_CELLS;
+        let earned = deltaCells * 10;
+        if (captureRatio >= 0.05) earned = Math.floor(earned * 1.5);
+        stageAreaScore += earned;
+        updateDisplayScore();
+      }
+
+      calculateProgress(true);
+    }
+
+    function handleStageClear() {
+      isRunning = false;
+      const stage = STAGES[currentStageIndex];
+
+      const timeBonus = Math.floor(timeLeft) * 80;
+      const overTargetBonus = Math.max(0, currentPct - stage.target) * 300;
+      const stageTotal = stageAreaScore + timeBonus + overTargetBonus;
+      totalScore += stageTotal;
+
+      const scoreBreakdownHTML = `
+        <table class="score-table">
+          <tr><td>佔領基礎分：</td><td><b>+${stageAreaScore.toLocaleString()}</b></td></tr>
+          <tr><td>剩餘時間獎勵 (${Math.ceil(timeLeft)}s)：</td><td><b>+${timeBonus.toLocaleString()}</b></td></tr>
+          <tr><td>超額占領獎勵 (${currentPct - stage.target}%)：</td><td><b>+${overTargetBonus.toLocaleString()}</b></td></tr>
+          <tr style="border-top: 1px solid #475569; color: #f59e0b;">
+            <td>本關總結算：</td><td><b>+${stageTotal.toLocaleString()}</b></td>
+          </tr>
+        </table>
+      `;
+
+      if (currentStageIndex < STAGES.length - 1) {
+        showOverlay(
+          `🎉 ${stage.label} 挑戰成功！`,
+          `達成度 ${currentPct}%（目標 ${stage.target}%）`,
+          scoreBreakdownHTML,
+          "進入下一關",
+          () => {
+            initStage(currentStageIndex + 1);
+            startRunning();
+          }
+        );
+      } else {
+        showOverlay(
+          `🏆 恭喜全通關！`,
+          `最終累計總得分：<span style="font-size:22px; color:#f59e0b; font-weight:bold;">${totalScore.toLocaleString()}</span>`,
+          scoreBreakdownHTML,
+          "重新開始遊戲",
+          () => {
+            restartEntireGame();
+          }
+        );
+      }
+    }
+
+    function handleGameOver(reason) {
+      isRunning = false;
+      showOverlay(
+        "❌ 挑戰失敗",
+        reason,
+        `<div style="margin: 6px 0; color:#ef4444;">本關累積的分數已被重置。</div>`,
+        "重新挑戰本關",
+        () => {
+          initStage(currentStageIndex);
+          startRunning();
+        }
+      );
+    }
+
+    function showOverlay(title, desc, extraHtml, btnText, callback) {
+      overlayTitle.textContent = title;
+      overlayDesc.innerHTML = desc;
+      overlayExtra.innerHTML = extraHtml || '';
+      overlayBtn.textContent = btnText;
+      overlay.classList.remove('hidden');
+
+      overlayBtn.onclick = () => {
+        overlay.classList.add('hidden');
+        callback();
+      };
+    }
+
+    function startRunning() {
+      isRunning = true;
+      lastTimestamp = performance.now();
+    }
+
+    function restartEntireGame() {
+      isRunning = false;
+      totalScore = 0;
+      initStage(0);
+      showOverlay(
+        "天蠶變：全新挑戰",
+        "已回到第 1 關，累計分數已歸零。",
+        "",
+        "開始第 1 關",
+        () => {
+          startRunning();
+        }
+      );
+    }
+
+    restartGameBtn.addEventListener('click', () => {
+      restartEntireGame();
+    });
+
+    // 鍵盤與觸控狀態管理
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+        e.preventDefault();
+      }
+      keys[e.key.toLowerCase()] = true;
+    });
+    window.addEventListener('keyup', (e) => {
+      keys[e.key.toLowerCase()] = false;
+    });
+
+    // 觸控方向鍵事件監聽（支援長按）
+    const bindTouchButton = (btnId, keyName) => {
+      const btn = document.getElementById(btnId);
+      const startPress = (e) => {
+        e.preventDefault();
+        keys[keyName] = true;
+        btn.classList.add('active');
+      };
+      const endPress = (e) => {
+        e.preventDefault();
+        keys[keyName] = false;
+        btn.classList.remove('active');
+      };
+
+      btn.addEventListener('touchstart', startPress, { passive: false });
+      btn.addEventListener('touchend', endPress, { passive: false });
+      btn.addEventListener('touchcancel', endPress, { passive: false });
+      btn.addEventListener('mousedown', startPress);
+      btn.addEventListener('mouseup', endPress);
+      btn.addEventListener('mouseleave', endPress);
+    };
+
+    bindTouchButton('btn-up', 'arrowup');
+    bindTouchButton('btn-down', 'arrowdown');
+    bindTouchButton('btn-left', 'arrowleft');
+    bindTouchButton('btn-right', 'arrowright');
+
+    function updatePlayer() {
+      if (!isRunning) return;
+
+      let dx = 0, dy = 0;
+      if (keys['arrowup'] || keys['w']) dy -= 1;
+      if (keys['arrowdown'] || keys['s']) dy += 1;
+      if (keys['arrowleft'] || keys['a']) dx -= 1;
+      if (keys['arrowright'] || keys['d']) dx += 1;
+
+      if (dx !== 0 && dy !== 0) dy = 0;
+      if (dx === 0 && dy === 0) return;
+
+      const nextX = Math.min(COLS - 1, Math.max(0, player.x + dx));
+      const nextY = Math.min(ROWS - 1, Math.max(0, player.y + dy));
+
+      if (nextX === player.x && nextY === player.y) return;
+
+      const targetCellState = grid[nextY][nextX];
+      if (targetCellState === TRAIL) return;
+
+      player.x = nextX;
+      player.y = nextY;
+
+      if (targetCellState === UNCLAIMED) {
+        grid[nextY][nextX] = TRAIL;
+        trailCells.push({ r: nextY, c: nextX });
+        player.isDrawing = true;
+      } else if (targetCellState === CLAIMED) {
+        if (player.isDrawing) {
+          resolveCapture();
+        }
+      }
+    }
+
+    function updateEnemies() {
+      if (!isRunning) return;
+
+      for (const en of enemies) {
+        let nextX = en.x + en.vx;
+        let nextY = en.y + en.vy;
+
+        const checkR = Math.floor(nextY);
+        const checkC = Math.floor(nextX);
+
+        if (checkC < 0 || checkC >= COLS || grid[Math.floor(en.y)][checkC] === CLAIMED) {
+          en.vx *= -1;
+          nextX = en.x + en.vx;
+        }
+        if (checkR < 0 || checkR >= ROWS || grid[checkR][Math.floor(en.x)] === CLAIMED) {
+          en.vy *= -1;
+          nextY = en.y + en.vy;
+        }
+
+        en.x = nextX;
+        en.y = nextY;
+
+        const currentR = Math.floor(en.y);
+        const currentC = Math.floor(en.x);
+
+        if (player.isDrawing) {
+          if (grid[currentR][currentC] === TRAIL) {
+            handleGameOver("你在畫線途中，線條被敵人觸碰到了！");
+            return;
+          }
+          const distToPlayer = Math.hypot(en.x - player.x, en.y - player.y);
+          if (distToPlayer < 1.8) {
+            handleGameOver("你在畫線途中被敵人直接撞擊！");
+            return;
+          }
+        }
+      }
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (bgImage.complete && bgImage.naturalWidth > 0) {
+        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const state = grid[r][c];
+          if (state === UNCLAIMED) {
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          } else if (state === TRAIL) {
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          }
+        }
+      }
+
+      ctx.fillStyle = '#ef4444';
+      ctx.shadowColor = '#ef4444';
+      ctx.shadowBlur = 8;
+      for (const en of enemies) {
+        ctx.beginPath();
+        ctx.arc(en.x * CELL_SIZE, en.y * CELL_SIZE, en.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(
+        player.x * CELL_SIZE - 1,
+        player.y * CELL_SIZE - 1,
+        CELL_SIZE + 2,
+        CELL_SIZE + 2
+      );
+    }
+
+    function gameLoop(timestamp) {
+      if (isRunning) {
+        const dt = (timestamp - lastTimestamp) / 1000;
+        lastTimestamp = timestamp;
+
+        timeLeft -= dt;
+        if (timeLeft <= 0) {
+          timeLeft = 0;
+          updateDisplayScore();
+          handleGameOver("時間耗盡，挑戰失敗！");
+          return;
+        }
+        updateDisplayScore();
+      } else {
+        lastTimestamp = timestamp;
+      }
+
+      updatePlayer();
+      updateEnemies();
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    restartEntireGame();
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
