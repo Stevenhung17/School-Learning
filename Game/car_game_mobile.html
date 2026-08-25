@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>極速狂飆：行動觸控版</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    body {
+      background: #12131a;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow: hidden;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      max-width: 420px;
+      height: 100vh;
+      max-height: 720px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.9);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #222;
+      border: 2px solid #333;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #2b2b2b;
+    }
+
+    .ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 12, 20, 0.85);
+      backdrop-filter: blur(6px);
+      z-index: 10;
+      padding: 20px;
+    }
+
+    .ui-title {
+      font-size: 30px;
+      font-weight: 900;
+      margin-bottom: 8px;
+      letter-spacing: 2px;
+      color: #ffcc00;
+      text-shadow: 0 0 16px rgba(255, 204, 0, 0.6);
+      text-align: center;
+    }
+
+    .ui-subtitle {
+      font-size: 13px;
+      color: #00d2d3;
+      margin-bottom: 18px;
+      font-weight: bold;
+    }
+
+    .item-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      color: #ccc;
+      text-align: center;
+    }
+
+    .btn {
+      padding: 14px 40px;
+      font-size: 18px;
+      font-weight: 800;
+      color: #111;
+      background: linear-gradient(135deg, #ffcc00, #ff9f43);
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(255, 159, 67, 0.4);
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .hud {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .hud-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 800;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+    }
+
+    .nitro-gauge-container {
+      width: 100%;
+      height: 8px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      overflow: hidden;
+      display: none;
+    }
+
+    .nitro-gauge-fill {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #00d2d3, #ff4757);
+      transition: width 0.05s linear;
+    }
+
+    /* 行動裝置虛擬觸控按鈕 */
+    .touch-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 16px;
+      pointer-events: none;
+      z-index: 6;
+    }
+
+    .touch-group {
+      display: flex;
+      gap: 12px;
+      pointer-events: auto;
+    }
+
+    .touch-btn {
+      width: 64px;
+      height: 64px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: bold;
+      color: #fff;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .touch-btn:active, .touch-btn.active {
+      background: rgba(255, 204, 0, 0.4);
+      border-color: #ffcc00;
+      transform: scale(0.92);
+    }
+
+    .touch-btn.gas {
+      width: 70px;
+      height: 70px;
+      background: rgba(46, 213, 115, 0.25);
+      border-color: rgba(46, 213, 115, 0.6);
+      font-size: 14px;
+    }
+
+    .touch-btn.gas:active, .touch-btn.gas.active {
+      background: rgba(46, 213, 115, 0.6);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <canvas id="gameCanvas" width="420" height="700"></canvas>
+    
+    <div id="hud" class="hud" style="display: none;">
+      <div class="hud-row">
+        <div>分數: <span id="scoreText">0</span></div>
+        <div style="color: #ffd32a;">金幣: <span id="coinText">0</span></div>
+        <div>時速: <span id="speedText">60</span> km/h</div>
+      </div>
+      <div id="nitroBarWrapper" class="nitro-gauge-container">
+        <div id="nitroBar" class="nitro-gauge-fill"></div>
+      </div>
+    </div>
+
+    <!-- 螢幕虛擬按鍵 -->
+    <div id="touchControls" class="touch-controls" style="display: none;">
+      <div class="touch-group">
+        <div class="touch-btn" id="btnLeft">◀</div>
+        <div class="touch-btn" id="btnRight">▶</div>
+      </div>
+      <div class="touch-group">
+        <div class="touch-btn gas" id="btnGas">GAS</div>
+      </div>
+    </div>
+
+    <div id="startScreen" class="ui-layer">
+      <h1 class="ui-title">極速狂飆</h1>
+      <div class="ui-subtitle">觸控與行動優化版</div>
+      <div class="item-legend">
+        <div>📱 <b>操作模式</b>：點擊下方按鈕 或 直接在畫面左右滑動</div>
+        <div>🟡 <b>金幣</b>：分數 +50</div>
+        <div>⚡ <b>氮氣</b>：4秒無敵極速衝刺</div>
+      </div>
+      <button class="btn" onclick="startGame()">點擊開始</button>
+    </div>
+
+    <div id="gameOverScreen" class="ui-layer" style="display: none;">
+      <h1 class="ui-title" style="color: #ff4757;">撞車淘汰！</h1>
+      <div class="item-legend">
+        <p>收集金幣: <span id="finalCoins" style="color: #ffd32a; font-weight: bold;">0</span> 枚</p>
+        <p>最終得分: <span id="finalScore" style="color: #fff; font-weight: bold;">0</span></p>
+        <p>最高紀錄: <span id="bestScore" style="color: #ff9f43; font-weight: bold;">0</span></p>
+      </div>
+      <button class="btn" onclick="startGame()">再玩一次</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const startScreen = document.getElementById('startScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const hud = document.getElementById('hud');
+    const touchControls = document.getElementById('touchControls');
+    const scoreText = document.getElementById('scoreText');
+    const coinText = document.getElementById('coinText');
+    const speedText = document.getElementById('speedText');
+    const nitroBarWrapper = document.getElementById('nitroBarWrapper');
+    const nitroBar = document.getElementById('nitroBar');
+    const finalScore = document.getElementById('finalScore');
+    const finalCoins = document.getElementById('finalCoins');
+    const bestScore = document.getElementById('bestScore');
+
+    const ROAD_LEFT = 60;
+    const ROAD_WIDTH = 300;
+    const ROAD_RIGHT = ROAD_LEFT + ROAD_WIDTH;
+    const LANE_COUNT = 3;
+    const LANE_WIDTH = ROAD_WIDTH / LANE_COUNT;
+
+    let gameState = 'START';
+    let score = 0;
+    let coinsCount = 0;
+    let highScore = localStorage.getItem('racing_nitro_touch_high') || 0;
+    let baseSpeed = 6;
+    let speed = 6;
+    let roadOffsetY = 0;
+    let animationId = null;
+    let spawnTimer = 0;
+    let itemSpawnTimer = 0;
+
+    const NITRO_DURATION = 240;
+    let nitroTimer = 0;
+
+    let particles = [];
+    let speedLines = [];
+    let floatingTexts = [];
+
+    const keys = { Left: false, Right: false, Up: false };
+
+    // 鍵盤支援
+    window.addEventListener('keydown', (e) => {
+      if (['ArrowLeft', 'KeyA'].includes(e.code)) keys.Left = true;
+      if (['ArrowRight', 'KeyD'].includes(e.code)) keys.Right = true;
+      if (['ArrowUp', 'KeyW'].includes(e.code)) keys.Up = true;
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (['ArrowLeft', 'KeyA'].includes(e.code)) keys.Left = false;
+      if (['ArrowRight', 'KeyD'].includes(e.code)) keys.Right = false;
+      if (['ArrowUp', 'KeyW'].includes(e.code)) keys.Up = false;
+    });
+
+    // 觸控虛擬按鍵綁定
+    function bindTouchBtn(elementId, keyProp) {
+      const btn = document.getElementById(elementId);
+      const press = (e) => { e.preventDefault(); keys[keyProp] = true; btn.classList.add('active'); };
+      const release = (e) => { e.preventDefault(); keys[keyProp] = false; btn.classList.remove('active'); };
+
+      btn.addEventListener('touchstart', press, { passive: false });
+      btn.addEventListener('touchend', release, { passive: false });
+      btn.addEventListener('touchcancel', release, { passive: false });
+      btn.addEventListener('mousedown', press);
+      btn.addEventListener('mouseup', release);
+      btn.addEventListener('mouseleave', release);
+    }
+
+    bindTouchBtn('btnLeft', 'Left');
+    bindTouchBtn('btnRight', 'Right');
+    bindTouchBtn('btnGas', 'Up');
+
+    // 支援直接滑動螢幕控制車輛
+    let isTouchingScreen = false;
+    let touchStartX = 0;
+    let playerStartX = 0;
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (gameState !== 'PLAYING') return;
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      
+      isTouchingScreen = true;
+      touchStartX = (touch.clientX - rect.left) * scaleX;
+      playerStartX = player.x;
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (!isTouchingScreen || gameState !== 'PLAYING') return;
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const currentX = (touch.clientX - rect.left) * scaleX;
+      
+      const deltaX = (currentX - touchStartX) * 1.2;
+      player.x = Math.max(ROAD_LEFT + 4, Math.min(ROAD_RIGHT - player.width - 4, playerStartX + deltaX));
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', () => { isTouchingScreen = false; });
+    canvas.addEventListener('touchcancel', () => { isTouchingScreen = false; });
+
+    // 玩家車輛
+    const player = {
+      x: 192,
+      y: 540,
+      width: 36,
+      height: 64,
+      lateralSpeed: 7,
+      color: '#ff3838'
+    };
+
+    let enemies = [];
+    let items = [];
+    const enemyColors = ['#2ed573', '#1e90ff', '#e056fd', '#00cec9', '#ffa502'];
+
+    // Web Audio 音效合成器
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx;
+
+    function playSound(type) {
+      if (!audioCtx) audioCtx = new AudioCtx();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const now = audioCtx.currentTime;
+
+      if (type === 'coin') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(987.77, now);
+        osc.frequency.setValueAtTime(1318.51, now + 0.08);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } else if (type === 'nitro') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(800, now + 0.5);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      } else if (type === 'smash') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.25);
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } else if (type === 'crash') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.exponentialRampToValueAtTime(20, now + 0.5);
+        gain.gain.setValueAtTime(0.6, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      }
+    }
+
+    function startGame() {
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+      gameState = 'PLAYING';
+      score = 0;
+      coinsCount = 0;
+      baseSpeed = 6;
+      speed = baseSpeed;
+      nitroTimer = 0;
+      enemies = [];
+      items = [];
+      particles = [];
+      speedLines = [];
+      floatingTexts = [];
+      spawnTimer = 0;
+      itemSpawnTimer = 0;
+      player.x = 192;
+      player.y = 540;
+
+      startScreen.style.display = 'none';
+      gameOverScreen.style.display = 'none';
+      hud.style.display = 'flex';
+      touchControls.style.display = 'flex';
+      nitroBarWrapper.style.display = 'none';
+
+      if (animationId) cancelAnimationFrame(animationId);
+      gameLoop();
+    }
+
+    function gameOver() {
+      gameState = 'GAMEOVER';
+      playSound('crash');
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('racing_nitro_touch_high', highScore);
+      }
+
+      finalScore.textContent = Math.floor(score);
+      finalCoins.textContent = coinsCount;
+      bestScore.textContent = Math.floor(highScore);
+
+      hud.style.display = 'none';
+      touchControls.style.display = 'none';
+      gameOverScreen.style.display = 'flex';
+    }
+
+    function createExplosion(x, y, color) {
+      for (let i = 0; i < 20; i++) {
+        particles.push({
+          x: x, y: y,
+          vx: (Math.random() - 0.5) * 12,
+          vy: (Math.random() - 0.5) * 12,
+          radius: Math.random() * 4 + 2,
+          color: color || '#ff9f43',
+          alpha: 1,
+          decay: 0.03 + Math.random() * 0.02
+        });
+      }
+    }
+
+    function createFloatingText(text, x, y, color) {
+      floatingTexts.push({ text, x, y, alpha: 1, color: color || '#fff' });
+    }
+
+    function drawRoad() {
+      ctx.fillStyle = '#1e371f';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = nitroTimer > 0 ? '#1f242e' : '#2f3542';
+      ctx.fillRect(ROAD_LEFT, 0, ROAD_WIDTH, canvas.height);
+
+      const curbHeight = 24;
+      for (let y = -curbHeight; y < canvas.height + curbHeight; y += curbHeight) {
+        const offset = (y + roadOffsetY) % (curbHeight * 2);
+        ctx.fillStyle = offset < curbHeight ? '#ff4757' : '#f1f2f6';
+        ctx.fillRect(ROAD_LEFT - 10, y + (roadOffsetY % curbHeight), 10, curbHeight);
+        ctx.fillRect(ROAD_RIGHT, y + (roadOffsetY % curbHeight), 10, curbHeight);
+      }
+
+      ctx.strokeStyle = '#ced6e0';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([24, 20]);
+      ctx.lineDashOffset = -roadOffsetY;
+
+      for (let i = 1; i < LANE_COUNT; i++) {
+        const laneX = ROAD_LEFT + LANE_WIDTH * i;
+        ctx.beginPath();
+        ctx.moveTo(laneX, 0);
+        ctx.lineTo(laneX, canvas.height);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+
+    function drawCar(car, isPlayer = false) {
+      ctx.save();
+      ctx.translate(car.x, car.y);
+
+      if (isPlayer && nitroTimer > 0) {
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#00d2d3';
+      }
+
+      ctx.fillStyle = '#111';
+      ctx.fillRect(-3, 8, 5, 12);
+      ctx.fillRect(car.width - 2, 8, 5, 12);
+      ctx.fillRect(-3, car.height - 20, 5, 12);
+      ctx.fillRect(car.width - 2, car.height - 20, 5, 12);
+
+      ctx.fillStyle = car.color;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, car.width, car.height, 8);
+      ctx.fill();
+
+      ctx.fillStyle = '#1e272e';
+      ctx.fillRect(5, 16, car.width - 10, 14);
+      ctx.fillRect(6, 40, car.width - 12, 8);
+
+      ctx.fillStyle = isPlayer ? '#c0392b' : 'rgba(0,0,0,0.2)';
+      ctx.fillRect(5, 28, car.width - 10, 12);
+
+      if (isPlayer) {
+        ctx.fillStyle = nitroTimer > 0 ? '#00d2d3' : '#f9ca24';
+        ctx.fillRect(4, 2, 6, 3);
+        ctx.fillRect(car.width - 10, 2, 6, 3);
+      } else {
+        ctx.fillStyle = '#ff7675';
+        ctx.fillRect(4, car.height - 4, 6, 3);
+        ctx.fillRect(car.width - 10, car.height - 4, 6, 3);
+      }
+
+      if (isPlayer && nitroTimer > 0) {
+        const flameHeight = 15 + Math.random() * 15;
+        const grad = ctx.createLinearGradient(0, car.height, 0, car.height + flameHeight);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.3, '#00d2d3');
+        grad.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(8, car.height);
+        ctx.lineTo(14, car.height + flameHeight);
+        ctx.lineTo(20, car.height);
+        ctx.moveTo(car.width - 20, car.height);
+        ctx.lineTo(car.width - 14, car.height + flameHeight);
+        ctx.lineTo(car.width - 8, car.height);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawItems() {
+      items.forEach(item => {
+        ctx.save();
+        ctx.translate(item.x + item.width / 2, item.y + item.height / 2);
+
+        if (item.type === 'coin') {
+          const scaleX = Math.abs(Math.cos(item.angle));
+          ctx.scale(scaleX, 1);
+          ctx.fillStyle = '#f1c40f';
+          ctx.beginPath();
+          ctx.arc(0, 0, 14, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#f39c12';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('$', 0, 1);
+        } else if (item.type === 'nitro') {
+          ctx.fillStyle = '#0984e3';
+          ctx.beginPath();
+          ctx.roundRect(-10, -14, 20, 28, 5);
+          ctx.fill();
+
+          ctx.fillStyle = '#dfe6e9';
+          ctx.fillRect(-5, -18, 10, 4);
+
+          ctx.fillStyle = '#ffeaa7';
+          ctx.beginPath();
+          ctx.moveTo(2, -8);
+          ctx.lineTo(-4, 0);
+          ctx.lineTo(0, 0);
+          ctx.lineTo(-2, 8);
+          ctx.lineTo(4, -1);
+          ctx.lineTo(0, -1);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+    }
+
+    function drawEffects() {
+      if (nitroTimer > 0 && Math.random() < 0.6) {
+        speedLines.push({
+          x: ROAD_LEFT + Math.random() * ROAD_WIDTH,
+          y: -50,
+          length: 40 + Math.random() * 60,
+          speed: 25 + Math.random() * 10
+        });
+      }
+
+      ctx.strokeStyle = 'rgba(0, 210, 211, 0.7)';
+      ctx.lineWidth = 2;
+      for (let i = speedLines.length - 1; i >= 0; i--) {
+        const line = speedLines[i];
+        line.y += line.speed;
+        ctx.beginPath();
+        ctx.moveTo(line.x, line.y);
+        ctx.lineTo(line.x, line.y + line.length);
+        ctx.stroke();
+        if (line.y > canvas.height) speedLines.splice(i, 1);
+      }
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= p.decay;
+
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y -= 1.5;
+        ft.alpha -= 0.02;
+
+        if (ft.alpha <= 0) {
+          floatingTexts.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = ft.alpha;
+        ctx.fillStyle = ft.color;
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      }
+    }
+
+    function checkCollision(r1, r2) {
+      const pad = 4;
+      return !(
+        r2.x + pad > r1.x + r1.width - pad ||
+        r2.x + r2.width - pad < r1.x + pad ||
+        r2.y + pad > r1.y + r1.height - pad ||
+        r2.y + r2.height - pad < r1.y + pad
+      );
+    }
+
+    function update() {
+      if (nitroTimer > 0) {
+        nitroTimer--;
+        speed = baseSpeed * 1.8;
+        nitroBar.style.width = `${(nitroTimer / NITRO_DURATION) * 100}%`;
+        if (nitroTimer === 0) {
+          nitroBarWrapper.style.display = 'none';
+        }
+      } else {
+        speed = baseSpeed + (keys.Up ? 3.5 : 0);
+      }
+
+      roadOffsetY += speed;
+
+      // 按鈕控制轉向
+      if (!isTouchingScreen) {
+        if (keys.Left && player.x > ROAD_LEFT + 4) {
+          player.x -= player.lateralSpeed;
+        }
+        if (keys.Right && player.x + player.width < ROAD_RIGHT - 4) {
+          player.x += player.lateralSpeed;
+        }
+      }
+
+      score += (speed * 0.06);
+      baseSpeed = 6 + Math.floor(score / 80) * 0.5;
+
+      // 產生敵車
+      spawnTimer++;
+      const spawnInterval = Math.max(28, 75 - Math.floor(score / 50));
+      if (spawnTimer > spawnInterval) {
+        spawnTimer = 0;
+        const lane = Math.floor(Math.random() * LANE_COUNT);
+        const laneX = ROAD_LEFT + lane * LANE_WIDTH + (LANE_WIDTH - player.width) / 2;
+
+        const isOverlap = enemies.some(e => Math.abs(e.y) < 110 && Math.abs(e.x - laneX) < 30);
+        if (!isOverlap) {
+          enemies.push({
+            x: laneX,
+            y: -80,
+            width: 36,
+            height: 64,
+            speed: baseSpeed * (0.35 + Math.random() * 0.3),
+            color: enemyColors[Math.floor(Math.random() * enemyColors.length)]
+          });
+        }
+      }
+
+      // 產生道具
+      itemSpawnTimer++;
+      if (itemSpawnTimer > 60) {
+        itemSpawnTimer = 0;
+        if (Math.random() < 0.65) {
+          const lane = Math.floor(Math.random() * LANE_COUNT);
+          const laneX = ROAD_LEFT + lane * LANE_WIDTH + LANE_WIDTH / 2 - 14;
+          const isNitro = Math.random() < 0.22;
+
+          items.push({
+            type: isNitro ? 'nitro' : 'coin',
+            x: laneX,
+            y: -50,
+            width: 28,
+            height: 28,
+            angle: 0
+          });
+        }
+      }
+
+      // 道具判定
+      for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+        item.y += speed * 0.9;
+        item.angle += 0.08;
+
+        if (checkCollision(player, item)) {
+          if (item.type === 'coin') {
+            coinsCount++;
+            score += 50;
+            playSound('coin');
+            createFloatingText('+50', player.x + player.width / 2, player.y - 10, '#ffd32a');
+          } else if (item.type === 'nitro') {
+            nitroTimer = NITRO_DURATION;
+            nitroBarWrapper.style.display = 'block';
+            playSound('nitro');
+            createFloatingText('NITRO BOOST!!', player.x + player.width / 2, player.y - 10, '#00d2d3');
+          }
+          items.splice(i, 1);
+          continue;
+        }
+
+        if (item.y > canvas.height + 50) {
+          items.splice(i, 1);
+        }
+      }
+
+      // 敵車判定
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const enemy = enemies[i];
+        enemy.y += (speed - enemy.speed);
+
+        if (checkCollision(player, enemy)) {
+          if (nitroTimer > 0) {
+            createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.color);
+            playSound('smash');
+            score += 150;
+            createFloatingText('+150 SMASH!', enemy.x, enemy.y, '#ff4757');
+            enemies.splice(i, 1);
+            continue;
+          } else {
+            gameOver();
+            return;
+          }
+        }
+
+        if (enemy.y > canvas.height + 100 || enemy.y < -150) {
+          enemies.splice(i, 1);
+        }
+      }
+
+      scoreText.textContent = Math.floor(score);
+      coinText.textContent = coinsCount;
+      speedText.textContent = Math.floor(speed * 18);
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawRoad();
+      drawItems();
+      enemies.forEach(e => drawCar(e, false));
+      drawCar(player, true);
+      drawEffects();
+    }
+
+    function gameLoop() {
+      if (gameState === 'PLAYING') {
+        update();
+        render();
+        animationId = requestAnimationFrame(gameLoop);
+      }
+    }
+
+    drawRoad();
+    drawCar(player, true);
+  </script>
+</body>
+</html>
