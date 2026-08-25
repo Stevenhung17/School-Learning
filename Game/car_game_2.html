@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>極速狂飆：氮氣金幣版</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background: #12131a;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    #game-container {
+      position: relative;
+      width: 420px;
+      height: 640px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(0, 180, 255, 0.15);
+      border-radius: 16px;
+      overflow: hidden;
+      background: #222;
+      border: 2px solid #333;
+    }
+
+    canvas {
+      display: block;
+      background: #2b2b2b;
+    }
+
+    .ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 12, 20, 0.82);
+      backdrop-filter: blur(6px);
+      z-index: 10;
+    }
+
+    .ui-title {
+      font-size: 32px;
+      font-weight: 900;
+      margin-bottom: 8px;
+      letter-spacing: 2px;
+      color: #ffcc00;
+      text-shadow: 0 0 16px rgba(255, 204, 0, 0.6);
+      text-align: center;
+    }
+
+    .ui-subtitle {
+      font-size: 14px;
+      color: #00d2d3;
+      margin-bottom: 20px;
+      letter-spacing: 1px;
+      font-weight: bold;
+    }
+
+    .ui-score-board {
+      font-size: 16px;
+      margin-bottom: 24px;
+      line-height: 1.8;
+      text-align: center;
+      color: #ddd;
+    }
+
+    .btn {
+      padding: 14px 36px;
+      font-size: 18px;
+      font-weight: 800;
+      color: #111;
+      background: linear-gradient(135deg, #ffcc00, #ff9f43);
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(255, 159, 67, 0.4);
+      transition: transform 0.1s, box-shadow 0.2s;
+    }
+
+    .btn:hover {
+      transform: scale(1.06);
+      box-shadow: 0 8px 25px rgba(255, 159, 67, 0.6);
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .hud {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .hud-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 15px;
+      font-weight: 800;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+    }
+
+    .nitro-gauge-container {
+      width: 100%;
+      height: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 5px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      overflow: hidden;
+      display: none;
+    }
+
+    .nitro-gauge-fill {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #00d2d3, #54a0ff, #ff4757);
+      box-shadow: 0 0 8px #00d2d3;
+      transition: width 0.05s linear;
+    }
+
+    .item-legend {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: #aaa;
+    }
+
+    .controls-hint {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #777;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <canvas id="gameCanvas" width="420" height="640"></canvas>
+    
+    <div id="hud" class="hud" style="display: none;">
+      <div class="hud-row">
+        <div>分數: <span id="scoreText" style="color: #fff;">0</span></div>
+        <div style="color: #ffd32a;">金幣: <span id="coinText">0</span></div>
+        <div>速度: <span id="speedText">60</span> km/h</div>
+      </div>
+      <div id="nitroBarWrapper" class="nitro-gauge-container">
+        <div id="nitroBar" class="nitro-gauge-fill"></div>
+      </div>
+    </div>
+
+    <div id="startScreen" class="ui-layer">
+      <h1 class="ui-title">極速狂飆</h1>
+      <div class="ui-subtitle">NITRO & COIN EDITION</div>
+      <div class="item-legend">
+        <span>🟡 金幣：額外 +50 分</span>
+        <span>⚡ 氮氣瓶：無敵極速衝刺</span>
+      </div>
+      <button class="btn" onclick="startGame()">發動引擎</button>
+    </div>
+
+    <div id="gameOverScreen" class="ui-layer" style="display: none;">
+      <h1 class="ui-title" style="color: #ff4757; text-shadow: 0 0 16px rgba(255, 71, 87, 0.6);">撞車淘汰！</h1>
+      <div class="ui-score-board">
+        <p>收集金幣: <span id="finalCoins" style="color: #ffd32a; font-weight: bold;">0</span> 枚</p>
+        <p>最終得分: <span id="finalScore" style="color: #fff; font-weight: bold;">0</span></p>
+        <p>最高紀錄: <span id="bestScore" style="color: #ff9f43; font-weight: bold;">0</span></p>
+      </div>
+      <button class="btn" onclick="startGame()">再次挑戰</button>
+    </div>
+  </div>
+
+  <div class="controls-hint">
+    操作方式：方向鍵 <b>← / →</b> 或 <b>A / D</b> 變換車道，<b>↑ / W</b> 油門加速
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const startScreen = document.getElementById('startScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const hud = document.getElementById('hud');
+    const scoreText = document.getElementById('scoreText');
+    const coinText = document.getElementById('coinText');
+    const speedText = document.getElementById('speedText');
+    const nitroBarWrapper = document.getElementById('nitroBarWrapper');
+    const nitroBar = document.getElementById('nitroBar');
+    const finalScore = document.getElementById('finalScore');
+    const finalCoins = document.getElementById('finalCoins');
+    const bestScore = document.getElementById('bestScore');
+
+    const ROAD_LEFT = 60;
+    const ROAD_WIDTH = 300;
+    const ROAD_RIGHT = ROAD_LEFT + ROAD_WIDTH;
+    const LANE_COUNT = 3;
+    const LANE_WIDTH = ROAD_WIDTH / LANE_COUNT;
+
+    let gameState = 'START';
+    let score = 0;
+    let coinsCount = 0;
+    let highScore = localStorage.getItem('racing_nitro_high') || 0;
+    let baseSpeed = 6;
+    let speed = 6;
+    let roadOffsetY = 0;
+    let animationId = null;
+    let spawnTimer = 0;
+    let itemSpawnTimer = 0;
+
+    // 氮氣狀態
+    const NITRO_DURATION = 240; // 4 秒 (60fps)
+    let nitroTimer = 0;
+
+    // 特效容器
+    let particles = [];
+    let speedLines = [];
+    let floatingTexts = [];
+
+    // 按鍵監聽
+    const keys = { Left: false, Right: false, Up: false, Down: false };
+    window.addEventListener('keydown', (e) => {
+      if (['ArrowLeft', 'KeyA'].includes(e.code)) keys.Left = true;
+      if (['ArrowRight', 'KeyD'].includes(e.code)) keys.Right = true;
+      if (['ArrowUp', 'KeyW'].includes(e.code)) keys.Up = true;
+      if (['ArrowDown', 'KeyS'].includes(e.code)) keys.Down = true;
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (['ArrowLeft', 'KeyA'].includes(e.code)) keys.Left = false;
+      if (['ArrowRight', 'KeyD'].includes(e.code)) keys.Right = false;
+      if (['ArrowUp', 'KeyW'].includes(e.code)) keys.Up = false;
+      if (['ArrowDown', 'KeyS'].includes(e.code)) keys.Down = false;
+    });
+
+    // 玩家車輛
+    const player = {
+      x: 192,
+      y: 500,
+      width: 36,
+      height: 64,
+      lateralSpeed: 6.5,
+      color: '#ff3838'
+    };
+
+    let enemies = [];
+    let items = []; // { type: 'coin' | 'nitro', x, y, width, height, angle }
+    const enemyColors = ['#2ed573', '#1e90ff', '#e056fd', '#00cec9', '#ffa502'];
+
+    // Web Audio 音效合成器
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx;
+
+    function playSound(type) {
+      if (!audioCtx) audioCtx = new AudioCtx();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const now = audioCtx.currentTime;
+
+      if (type === 'coin') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(987.77, now); // B5
+        osc.frequency.setValueAtTime(1318.51, now + 0.08); // E6
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } else if (type === 'nitro') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(800, now + 0.5);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      } else if (type === 'smash') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.25);
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } else if (type === 'crash') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.exponentialRampToValueAtTime(20, now + 0.5);
+        gain.gain.setValueAtTime(0.6, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      }
+    }
+
+    function startGame() {
+      gameState = 'PLAYING';
+      score = 0;
+      coinsCount = 0;
+      baseSpeed = 6;
+      speed = baseSpeed;
+      nitroTimer = 0;
+      enemies = [];
+      items = [];
+      particles = [];
+      speedLines = [];
+      floatingTexts = [];
+      spawnTimer = 0;
+      itemSpawnTimer = 0;
+      player.x = 192;
+      player.y = 500;
+
+      startScreen.style.display = 'none';
+      gameOverScreen.style.display = 'none';
+      hud.style.display = 'flex';
+      nitroBarWrapper.style.display = 'none';
+
+      if (animationId) cancelAnimationFrame(animationId);
+      gameLoop();
+    }
+
+    function gameOver() {
+      gameState = 'GAMEOVER';
+      playSound('crash');
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('racing_nitro_high', highScore);
+      }
+
+      finalScore.textContent = Math.floor(score);
+      finalCoins.textContent = coinsCount;
+      bestScore.textContent = Math.floor(highScore);
+
+      hud.style.display = 'none';
+      gameOverScreen.style.display = 'flex';
+    }
+
+    function createExplosion(x, y, color) {
+      for (let i = 0; i < 20; i++) {
+        particles.push({
+          x: x,
+          y: y,
+          vx: (Math.random() - 0.5) * 12,
+          vy: (Math.random() - 0.5) * 12,
+          radius: Math.random() * 4 + 2,
+          color: color || '#ff9f43',
+          alpha: 1,
+          decay: 0.03 + Math.random() * 0.02
+        });
+      }
+    }
+
+    function createFloatingText(text, x, y, color) {
+      floatingTexts.push({
+        text,
+        x,
+        y,
+        alpha: 1,
+        color: color || '#fff'
+      });
+    }
+
+    function drawRoad() {
+      // 草地邊界
+      ctx.fillStyle = '#1e371f';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 柏油路面
+      ctx.fillStyle = nitroTimer > 0 ? '#1f242e' : '#2f3542';
+      ctx.fillRect(ROAD_LEFT, 0, ROAD_WIDTH, canvas.height);
+
+      // 路肩紅白邊界石
+      const curbHeight = 24;
+      for (let y = -curbHeight; y < canvas.height + curbHeight; y += curbHeight) {
+        const offset = (y + roadOffsetY) % (curbHeight * 2);
+        ctx.fillStyle = offset < curbHeight ? '#ff4757' : '#f1f2f6';
+        ctx.fillRect(ROAD_LEFT - 10, y + (roadOffsetY % curbHeight), 10, curbHeight);
+        ctx.fillRect(ROAD_RIGHT, y + (roadOffsetY % curbHeight), 10, curbHeight);
+      }
+
+      // 車道線
+      ctx.strokeStyle = '#ced6e0';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([24, 20]);
+      ctx.lineDashOffset = -roadOffsetY;
+
+      for (let i = 1; i < LANE_COUNT; i++) {
+        const laneX = ROAD_LEFT + LANE_WIDTH * i;
+        ctx.beginPath();
+        ctx.moveTo(laneX, 0);
+        ctx.lineTo(laneX, canvas.height);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+
+    function drawCar(car, isPlayer = false) {
+      ctx.save();
+      ctx.translate(car.x, car.y);
+
+      // 氮氣模式車身發光光暈
+      if (isPlayer && nitroTimer > 0) {
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#00d2d3';
+      }
+
+      // 輪胎
+      ctx.fillStyle = '#111';
+      ctx.fillRect(-3, 8, 5, 12);
+      ctx.fillRect(car.width - 2, 8, 5, 12);
+      ctx.fillRect(-3, car.height - 20, 5, 12);
+      ctx.fillRect(car.width - 2, car.height - 20, 5, 12);
+
+      // 車體主體
+      ctx.fillStyle = car.color;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, car.width, car.height, 8);
+      ctx.fill();
+
+      // 車窗
+      ctx.fillStyle = '#1e272e';
+      ctx.fillRect(5, 16, car.width - 10, 14); // 前擋風
+      ctx.fillRect(6, 40, car.width - 12, 8);  // 後擋風
+
+      // 車頂
+      ctx.fillStyle = isPlayer ? '#c0392b' : 'rgba(0,0,0,0.2)';
+      ctx.fillRect(5, 28, car.width - 10, 12);
+
+      // 車燈
+      if (isPlayer) {
+        ctx.fillStyle = nitroTimer > 0 ? '#00d2d3' : '#f9ca24';
+        ctx.fillRect(4, 2, 6, 3);
+        ctx.fillRect(car.width - 10, 2, 6, 3);
+      } else {
+        ctx.fillStyle = '#ff7675';
+        ctx.fillRect(4, car.height - 4, 6, 3);
+        ctx.fillRect(car.width - 10, car.height - 4, 6, 3);
+      }
+
+      // 氮氣噴射火焰特效
+      if (isPlayer && nitroTimer > 0) {
+        const flameHeight = 15 + Math.random() * 15;
+        const grad = ctx.createLinearGradient(0, car.height, 0, car.height + flameHeight);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.3, '#00d2d3');
+        grad.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(8, car.height);
+        ctx.lineTo(14, car.height + flameHeight);
+        ctx.lineTo(20, car.height);
+        ctx.moveTo(car.width - 20, car.height);
+        ctx.lineTo(car.width - 14, car.height + flameHeight);
+        ctx.lineTo(car.width - 8, car.height);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawItems() {
+      items.forEach(item => {
+        ctx.save();
+        ctx.translate(item.x + item.width / 2, item.y + item.height / 2);
+
+        if (item.type === 'coin') {
+          // 金幣旋轉透視
+          const scaleX = Math.abs(Math.cos(item.angle));
+          ctx.scale(scaleX, 1);
+
+          ctx.fillStyle = '#f1c40f';
+          ctx.beginPath();
+          ctx.arc(0, 0, 14, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = '#f39c12';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+
+          // 錢幣星紋
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('$', 0, 1);
+        } else if (item.type === 'nitro') {
+          // 氮氣瓶瓶身
+          ctx.fillStyle = '#0984e3';
+          ctx.beginPath();
+          ctx.roundRect(-10, -14, 20, 28, 5);
+          ctx.fill();
+
+          // 瓶蓋
+          ctx.fillStyle = '#dfe6e9';
+          ctx.fillRect(-5, -18, 10, 4);
+
+          // 標誌閃電
+          ctx.fillStyle = '#ffeaa7';
+          ctx.beginPath();
+          ctx.moveTo(2, -8);
+          ctx.lineTo(-4, 0);
+          ctx.lineTo(0, 0);
+          ctx.lineTo(-2, 8);
+          ctx.lineTo(4, -1);
+          ctx.lineTo(0, -1);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        ctx.restore();
+      });
+    }
+
+    function drawEffects() {
+      // 氮氣速度流線 (Speed Lines)
+      if (nitroTimer > 0) {
+        if (Math.random() < 0.6) {
+          speedLines.push({
+            x: ROAD_LEFT + Math.random() * ROAD_WIDTH,
+            y: -50,
+            length: 40 + Math.random() * 60,
+            speed: 25 + Math.random() * 10
+          });
+        }
+      }
+
+      ctx.strokeStyle = 'rgba(0, 210, 211, 0.7)';
+      ctx.lineWidth = 2;
+      for (let i = speedLines.length - 1; i >= 0; i--) {
+        const line = speedLines[i];
+        line.y += line.speed;
+        ctx.beginPath();
+        ctx.moveTo(line.x, line.y);
+        ctx.lineTo(line.x, line.y + line.length);
+        ctx.stroke();
+
+        if (line.y > canvas.height) speedLines.splice(i, 1);
+      }
+
+      // 爆炸與尾跡粒子
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= p.decay;
+
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 浮動加分文字
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y -= 1.5;
+        ft.alpha -= 0.02;
+
+        if (ft.alpha <= 0) {
+          floatingTexts.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = ft.alpha;
+        ctx.fillStyle = ft.color;
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      }
+    }
+
+    function checkCollision(r1, r2) {
+      const pad = 4;
+      return !(
+        r2.x + pad > r1.x + r1.width - pad ||
+        r2.x + r2.width - pad < r1.x + pad ||
+        r2.y + pad > r1.y + r1.height - pad ||
+        r2.y + r2.height - pad < r1.y + pad
+      );
+    }
+
+    function update() {
+      // 氮氣計時與速度加成
+      if (nitroTimer > 0) {
+        nitroTimer--;
+        speed = baseSpeed * 1.8;
+        nitroBar.style.width = `${(nitroTimer / NITRO_DURATION) * 100}%`;
+        if (nitroTimer === 0) {
+          nitroBarWrapper.style.display = 'none';
+        }
+      } else {
+        speed = baseSpeed + (keys.Up ? 3.5 : (keys.Down ? -2 : 0));
+      }
+
+      roadOffsetY += speed;
+
+      // 玩家左右位移
+      if (keys.Left && player.x > ROAD_LEFT + 4) {
+        player.x -= player.lateralSpeed;
+      }
+      if (keys.Right && player.x + player.width < ROAD_RIGHT - 4) {
+        player.x += player.lateralSpeed;
+      }
+
+      // 分數與難度升級
+      score += (speed * 0.06);
+      baseSpeed = 6 + Math.floor(score / 80) * 0.5;
+
+      // 敵車生成邏輯
+      spawnTimer++;
+      const spawnInterval = Math.max(26, 75 - Math.floor(score / 50));
+      if (spawnTimer > spawnInterval) {
+        spawnTimer = 0;
+        const lane = Math.floor(Math.random() * LANE_COUNT);
+        const laneX = ROAD_LEFT + lane * LANE_WIDTH + (LANE_WIDTH - player.width) / 2;
+
+        const isOverlap = enemies.some(e => Math.abs(e.y) < 110 && Math.abs(e.x - laneX) < 30);
+        if (!isOverlap) {
+          enemies.push({
+            x: laneX,
+            y: -80,
+            width: 36,
+            height: 64,
+            speed: baseSpeed * (0.35 + Math.random() * 0.3),
+            color: enemyColors[Math.floor(Math.random() * enemyColors.length)]
+          });
+        }
+      }
+
+      // 道具生成邏輯 (金幣 / 氮氣)
+      itemSpawnTimer++;
+      if (itemSpawnTimer > 60) {
+        itemSpawnTimer = 0;
+        if (Math.random() < 0.65) {
+          const lane = Math.floor(Math.random() * LANE_COUNT);
+          const laneX = ROAD_LEFT + lane * LANE_WIDTH + LANE_WIDTH / 2 - 14;
+          const isNitro = Math.random() < 0.22; // 22% 機率產生氮氣瓶
+
+          items.push({
+            type: isNitro ? 'nitro' : 'coin',
+            x: laneX,
+            y: -50,
+            width: 28,
+            height: 28,
+            angle: 0
+          });
+        }
+      }
+
+      // 更新道具
+      for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+        item.y += speed * 0.9;
+        item.angle += 0.08;
+
+        // 玩家吃道具判定
+        if (checkCollision(player, item)) {
+          if (item.type === 'coin') {
+            coinsCount++;
+            score += 50;
+            playSound('coin');
+            createFloatingText('+50', player.x + player.width / 2, player.y - 10, '#ffd32a');
+          } else if (item.type === 'nitro') {
+            nitroTimer = NITRO_DURATION;
+            nitroBarWrapper.style.display = 'block';
+            playSound('nitro');
+            createFloatingText('NITRO BOOST!!', player.x + player.width / 2, player.y - 10, '#00d2d3');
+          }
+          items.splice(i, 1);
+          continue;
+        }
+
+        if (item.y > canvas.height + 50) {
+          items.splice(i, 1);
+        }
+      }
+
+      // 更新敵車與碰撞判定
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const enemy = enemies[i];
+        enemy.y += (speed - enemy.speed);
+
+        if (checkCollision(player, enemy)) {
+          if (nitroTimer > 0) {
+            // 氮氣衝撞摧毀敵車
+            createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.color);
+            playSound('smash');
+            score += 150;
+            createFloatingText('+150 SMASH!', enemy.x, enemy.y, '#ff4757');
+            enemies.splice(i, 1);
+            continue;
+          } else {
+            gameOver();
+            return;
+          }
+        }
+
+        if (enemy.y > canvas.height + 100 || enemy.y < -150) {
+          enemies.splice(i, 1);
+        }
+      }
+
+      // 更新 HUD
+      scoreText.textContent = Math.floor(score);
+      coinText.textContent = coinsCount;
+      speedText.textContent = Math.floor(speed * 18);
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawRoad();
+      drawItems();
+      enemies.forEach(e => drawCar(e, false));
+      drawCar(player, true);
+      drawEffects();
+    }
+
+    function gameLoop() {
+      if (gameState === 'PLAYING') {
+        update();
+        render();
+        animationId = requestAnimationFrame(gameLoop);
+      }
+    }
+
+    drawRoad();
+    drawCar(player, true);
+  </script>
+</body>
+</html>
