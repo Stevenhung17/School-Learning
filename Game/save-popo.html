@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=no">
+  <title>拯救波波 - 歡樂打擊小遊戲</title>
+  <style>
+    :root {
+      --primary-color: #ff6b6b;
+      --secondary-color: #4ecdc4;
+      --accent-yellow: #ffe66d;
+      --bg-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+      --board-bg: #fff9f0;
+      --card-border: #f7d794;
+      --font-family: 'PingFang TC', 'Microsoft JhengHei', 'Heiti TC', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      overflow-x: hidden;
+      color: #2f3542;
+    }
+
+    /* 遊戲主容器 */
+    .game-container {
+      width: 100%;
+      max-width: 480px;
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 28px;
+      padding: 20px 16px;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.05);
+      border: 3px solid #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    /* 標題與說明 */
+    .header-area {
+      text-align: center;
+      margin-bottom: 12px;
+      width: 100%;
+    }
+
+    .game-title {
+      font-size: 26px;
+      font-weight: 900;
+      color: #ee5253;
+      letter-spacing: 1px;
+      text-shadow: 2px 2px 0px #ffeaa7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .game-desc {
+      font-size: 13px;
+      color: #57606f;
+      margin-top: 4px;
+      line-height: 1.4;
+      padding: 0 8px;
+    }
+
+    /* HUD 頂部資訊列 */
+    .hud-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+      margin-bottom: 16px;
+    }
+
+    .hud-card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 8px 4px;
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
+      border: 2px solid #f1f2f6;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.2s ease;
+    }
+
+    .hud-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #a4b0be;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .hud-value {
+      font-size: 24px;
+      font-weight: 900;
+      color: #2f3542;
+      line-height: 1;
+    }
+
+    /* 計時器樣式與倒數特效 */
+    #timer-box.warning {
+      border-color: #ff4757;
+      background: #fff0f1;
+    }
+
+    #timer-val.warning {
+      color: #ff4757;
+      animation: heartbeat 0.8s infinite alternate ease-in-out;
+      transform-origin: center center;
+    }
+
+    @keyframes heartbeat {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.35); }
+    }
+
+    /* Combo 樣式與跳動特效 */
+    .combo-active {
+      color: #ff9f43 !important;
+    }
+
+    .combo-bounce {
+      animation: comboPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes comboPop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.45); }
+      100% { transform: scale(1); }
+    }
+
+    /* 九宮格遊戲主舞台 */
+    .grid-board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 12px;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: var(--board-bg);
+      padding: 12px;
+      border-radius: 22px;
+      border: 3px dashed #ffc048;
+      box-sizing: border-box;
+      position: relative;
+    }
+
+    /* 格子樣式 */
+    .grid-cell {
+      background: #ffffff;
+      border-radius: 16px;
+      border: 2px solid #eccc68;
+      box-shadow: 0 4px 0 #d6a843;
+      position: relative;
+      cursor: pointer;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.08s ease, box-shadow 0.08s ease;
+      touch-action: manipulation;
+    }
+
+    /* 空格微幅下凹反饋 */
+    .grid-cell.cell-empty-depressed {
+      transform: scale(0.94) translateY(2px) !important;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+      background: #f1f2f6;
+    }
+
+    /* 格內角色圖像 */
+    .character-img {
+      width: 88%;
+      height: 88%;
+      object-fit: contain;
+      pointer-events: none;
+      transition: transform 0.15s ease;
+      filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.12));
+    }
+
+    /* 角色出現動畫 */
+    .pop-in {
+      animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.1) rotate(-8deg); opacity: 0; }
+      80% { transform: scale(1.08) rotate(3deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+
+    /* 邪惡波波被消滅動畫 */
+    .dead-pop {
+      animation: evilVanish 0.25s ease-out forwards !important;
+    }
+
+    @keyframes evilVanish {
+      0% { transform: scale(1.1); filter: brightness(1.4); }
+      50% { transform: scale(0.6) rotate(15deg); opacity: 0.8; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+
+    /* 天使波波受擊晃動動畫 */
+    .shake-angel {
+      animation: angelShake 0.3s ease-in-out;
+    }
+
+    @keyframes angelShake {
+      0% { transform: translateX(0); }
+      20% { transform: translateX(-8px) rotate(-6deg); }
+      40% { transform: translateX(8px) rotate(6deg); }
+      60% { transform: translateX(-5px) rotate(-3deg); }
+      80% { transform: translateX(5px) rotate(3deg); }
+      100% { transform: translateX(0) rotate(0deg); }
+    }
+
+    /* 浮動得分飄字 */
+    .score-popup {
+      position: absolute;
+      font-size: 24px;
+      font-weight: 900;
+      color: #ff4757;
+      text-shadow: 2px 2px 0px #fff;
+      pointer-events: none;
+      z-index: 20;
+      animation: floatUp 0.6s ease-out forwards;
+    }
+
+    @keyframes floatUp {
+      0% { transform: translate(-50%, -20%) scale(0.8); opacity: 1; }
+      100% { transform: translate(-50%, -100%) scale(1.3); opacity: 0; }
+    }
+
+    /* 浮動提示文字 */
+    .notice-popup {
+      position: absolute;
+      font-size: 15px;
+      font-weight: 800;
+      color: #57606f;
+      background: #ffffff;
+      border: 2px solid #ced6e0;
+      padding: 2px 8px;
+      border-radius: 12px;
+      pointer-events: none;
+      z-index: 20;
+      animation: noticeFloat 0.5s ease-out forwards;
+    }
+
+    @keyframes noticeFloat {
+      0% { transform: translate(-50%, -10%) scale(0.9); opacity: 1; }
+      100% { transform: translate(-50%, -80%) scale(1.1); opacity: 0; }
+    }
+
+    /* 遮罩彈窗（開始畫面、結算畫面、排行榜） */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(47, 53, 66, 0.75);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border-radius: 26px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 30;
+      color: #2f3542;
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-card {
+      background: #ffffff;
+      width: 95%;
+      border-radius: 22px;
+      padding: 22px 18px;
+      box-shadow: 0 15px 30px rgba(0,0,0,0.25);
+      border: 4px solid #fed330;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-height: 92%;
+      overflow-y: auto;
+    }
+
+    .modal-title {
+      font-size: 24px;
+      font-weight: 900;
+      color: #eb3b5a;
+      margin-bottom: 8px;
+    }
+
+    .btn {
+      background: linear-gradient(180deg, #ff6b6b 0%, #ee5253 100%);
+      color: #ffffff;
+      font-size: 18px;
+      font-weight: 800;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 5px 0 #b33939, 0 8px 15px rgba(238, 82, 83, 0.4);
+      margin-top: 14px;
+      transition: all 0.1s ease;
+      width: 80%;
+      max-width: 240px;
+      outline: none;
+    }
+
+    .btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 #b33939, 0 3px 6px rgba(238, 82, 83, 0.4);
+    }
+
+    /* 結算統計數據網格 */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+      margin: 12px 0;
+    }
+
+    .stat-item {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 8px;
+      border: 1px solid #e9ecef;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #747d8c;
+      font-weight: 600;
+    }
+
+    .stat-val {
+      font-size: 20px;
+      font-weight: 900;
+      color: #2ed573;
+    }
+
+    .player-name-input {
+      width: 85%;
+      padding: 10px 14px;
+      font-size: 15px;
+      border-radius: 12px;
+      border: 2px solid #ffa502;
+      outline: none;
+      text-align: center;
+      font-weight: bold;
+      margin: 8px 0;
+      background: #fffaf0;
+    }
+
+    /* 排行榜表格 */
+    .leaderboard-box {
+      width: 100%;
+      margin-top: 10px;
+      border-top: 2px dashed #e2e8f0;
+      padding-top: 10px;
+    }
+
+    .lb-table {
+      width: 100%;
+      font-size: 12px;
+      border-collapse: collapse;
+    }
+
+    .lb-table th {
+      color: #a4b0be;
+      padding: 5px 2px;
+      font-weight: bold;
+    }
+
+    .lb-table td {
+      padding: 6px 3px;
+      font-weight: 600;
+      border-bottom: 1px solid #f1f2f6;
+    }
+
+    .lb-rank-1 { color: #f39c12; font-weight: 900; }
+    .lb-rank-2 { color: #7f8c8d; font-weight: 900; }
+    .lb-rank-3 { color: #d35400; font-weight: 900; }
+    .lb-row-current {
+      background-color: #fff9e6;
+      border: 2px solid #fed330 !important;
+      border-radius: 8px;
+    }
+
+    /* 圖示預備佔位 (Fallback SVG) */
+    .svg-fallback {
+      width: 80%;
+      height: 80%;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="game-container">
+    <!-- 標題與簡介 -->
+    <div class="header-area">
+      <div class="game-title">
+        <span>🛡️</span> 拯救波波 <span>👑</span>
+      </div>
+      <div class="game-desc">
+        邪惡國王與惡魔皇后來了！請小朋友幫忙消滅邪惡波波，注意不要打到天使波波喔～
+      </div>
+    </div>
+
+    <!-- HUD 頂部狀態列 -->
+    <div class="hud-bar">
+      <div class="hud-card" id="timer-box">
+        <div class="hud-label">倒數時間</div>
+        <div class="hud-value" id="timer-val">60s</div>
+      </div>
+      <div class="hud-card">
+        <div class="hud-label">目前得分</div>
+        <div class="hud-value" id="score-val" style="color: #ff4757;">0</div>
+      </div>
+      <div class="hud-card">
+        <div class="hud-label">連擊 COMBO</div>
+        <div class="hud-value" id="combo-val">0</div>
+      </div>
+    </div>
+
+    <!-- 九宮格打擊棋盤 -->
+    <div class="grid-board" id="game-board">
+      <!-- 由 JS 動態生成 9 個格子 -->
+    </div>
+
+    <!-- 浮動文字容器 -->
+    <div id="popup-layer" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; overflow: hidden; border-radius: 26px;"></div>
+
+    <!-- 1. 開始遊戲彈窗 -->
+    <div class="modal-overlay" id="start-modal">
+      <div class="modal-card">
+        <div style="font-size: 48px; margin-bottom: 4px;">🏰</div>
+        <div class="modal-title">拯救波波大冒險</div>
+        <p style="font-size: 14px; color: #57606f; line-height: 1.6; margin-bottom: 12px;">
+          限時 <b>60 秒</b>！<br>
+          🔥 點擊消滅<b>邪惡波波</b>，每輪清空即可過關。<br>
+          🛡️ 每輪都有<b>天使波波</b>守護，千萬別打到喔！<br>
+          ⭐ 連續擊中邪惡波波可觸發 <b>Combo 最高 3 倍加分</b>！
+        </p>
+        <button class="btn" id="start-btn">開始拯救！</button>
+      </div>
+    </div>
+
+    <!-- 2. 遊戲結束結算彈窗 -->
+    <div class="modal-overlay" id="gameover-modal" style="display: none;">
+      <div class="modal-card">
+        <div style="font-size: 42px; margin-bottom: 4px;">🎉</div>
+        <div class="modal-title" id="gameover-title">時間到！挑戰完成！</div>
+
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-label">最終總分</div>
+            <div class="stat-val" id="stat-score" style="color:#ee5253;">0</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">最高連擊 (Combo)</div>
+            <div class="stat-val" id="stat-max-combo" style="color:#ffa502;">0</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">消滅邪惡數量</div>
+            <div class="stat-val" id="stat-evil-cleared" style="color:#2ed573;">0</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">點擊命中率</div>
+            <div class="stat-val" id="stat-accuracy" style="color:#1e90ff;">0%</div>
+          </div>
+        </div>
+
+        <div style="width: 100%; margin-top: 4px;">
+          <input type="text" id="player-name" class="player-name-input" maxlength="12" placeholder="輸入小勇士暱稱" value="波波守護者">
+        </div>
+
+        <button class="btn" id="save-score-btn">儲存成績並看排名</button>
+      </div>
+    </div>
+
+    <!-- 3. Session 排行榜彈窗 -->
+    <div class="modal-overlay" id="leaderboard-modal" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-title" style="color:#ffa502;">🏆 本次遊玩排行榜</div>
+        <div class="leaderboard-box" style="border-top: none; max-height: 230px; overflow-y: auto;">
+          <table class="lb-table">
+            <thead>
+              <tr>
+                <th style="width: 15%;">名次</th>
+                <th style="width: 35%;">暱稱</th>
+                <th style="width: 18%;">分數</th>
+                <th style="width: 16%;">準確率</th>
+                <th style="width: 16%;">連擊</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-tbody">
+              <!-- JS 動態插入排列表 -->
+            </tbody>
+          </table>
+        </div>
+        <button class="btn" id="play-again-btn" style="margin-top: 16px;">再玩一次！</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    /* =========================================================
+     * 1. 音效系統 (純 Web Audio API 合成，零外部依賴)
+     * ========================================================= */
+    class SoundController {
+      constructor() {
+        this.ctx = null;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      // 擊中邪惡波波：明亮清脆向上音階 (C5 -> A5)
+      playHitEvil(comboCount) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        const pitchMultiplier = 1 + Math.min(comboCount * 0.03, 0.45);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25 * pitchMultiplier, now);
+        osc.frequency.exponentialRampToValueAtTime(880 * pitchMultiplier, now + 0.12);
+
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.16);
+      }
+
+      // 誤擊天使波波：下墜鋸齒失誤音 (A3 -> A2)
+      playHitAngel() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(110, now + 0.22);
+
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.26);
+      }
+
+      // 點擊空格：極短輕微敲擊木音
+      playEmptyClick() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(320, now);
+
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.05);
+      }
+
+      // 最後 10 秒倒數警示音：高亢提示嗶聲
+      playWarningBeep() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(880, now);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.1);
+      }
+
+      // 遊戲結束號角音
+      playGameOver() {
+        if (!this.ctx) return;
+        const notes = [440, 554.37, 659.25, 880];
+        notes.forEach((freq, idx) => {
+          const now = this.ctx.currentTime + idx * 0.1;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 0.26);
+        });
+      }
+    }
+
+    const sound = new SoundController();
+
+    /* =========================================================
+     * 2. 素材設定與 Fallback 產生器
+     * ========================================================= */
+    const ANGEL_IMAGES = [
+      'Pictures/Angel_Popo_1.png',
+      'Pictures/Angel_Popo_2.png',
+      'Pictures/Angel_Popo_3.png',
+      'Pictures/Angel_Popo_4.png',
+      'Pictures/Angel_Popo_5.png',
+      'Pictures/Angel_Popo_6.png'
+    ];
+
+    const EVIL_IMAGES = [
+      'Pictures/Evil_Popo_1.png',
+      'Pictures/Evil_Popo_2.png',
+      'Pictures/Evil_Popo_3.png'
+    ];
+
+    function getFallbackSVG(type, index) {
+      if (type === 'angel') {
+        const tints = ['#ffeaa7', '#74b9ff', '#a29bfe', '#fab1a0', '#81ecec', '#55efc4'];
+        const color = tints[index % tints.length];
+        return `<svg viewBox="0 0 100 100" class="svg-fallback">
+          <circle cx="50" cy="50" r="42" fill="${color}" stroke="#ffeaa7" stroke-width="4"/>
+          <ellipse cx="50" cy="18" rx="24" ry="7" fill="none" stroke="#f1c40f" stroke-width="5"/>
+          <circle cx="38" cy="48" r="5" fill="#2d3436"/>
+          <circle cx="62" cy="48" r="5" fill="#2d3436"/>
+          <circle cx="40" cy="46" r="1.5" fill="#ffffff"/>
+          <circle cx="64" cy="46" r="1.5" fill="#ffffff"/>
+          <path d="M 38 60 Q 50 72 62 60" stroke="#2d3436" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          <circle cx="30" cy="58" r="6" fill="#ff7675" opacity="0.45"/>
+          <circle cx="70" cy="58" r="6" fill="#ff7675" opacity="0.45"/>
+        </svg>`;
+      } else {
+        const crowns = ['#e74c3c', '#8e44ad', '#d35400'];
+        const crownColor = crowns[index % crowns.length];
+        return `<svg viewBox="0 0 100 100" class="svg-fallback">
+          <circle cx="50" cy="55" r="40" fill="#ff7675" stroke="#d63031" stroke-width="4"/>
+          <polygon points="30,26 36,40 50,28 64,40 70,26 66,45 34,45" fill="${crownColor}" stroke="#f1c40f" stroke-width="2"/>
+          <path d="M 30 46 L 45 53" stroke="#2d3436" stroke-width="4" stroke-linecap="round"/>
+          <path d="M 70 46 L 55 53" stroke="#2d3436" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="39" cy="54" r="4.5" fill="#2d3436"/>
+          <circle cx="61" cy="54" r="4.5" fill="#2d3436"/>
+          <path d="M 36 68 Q 50 82 64 68 Z" fill="#2d3436"/>
+          <polygon points="44,68 47,74 50,68" fill="#ffffff"/>
+        </svg>`;
+      }
+    }
+
+    /* =========================================================
+     * 3. 遊戲核心狀態變數
+     * ========================================================= */
+    const TOTAL_TIME = 60;
+    let timeLeft = TOTAL_TIME;
+    let timerInterval = null;
+    let isPlaying = false;
+
+    let score = 0;
+    let combo = 0;
+    let maxCombo = 0;
+
+    let evilClearedCount = 0;
+    let angelMistakeCount = 0;
+    let emptyClickCount = 0;
+
+    let currentRoundEvilsRemaining = 0;
+    const cellStates = Array(9).fill(null);
+    let latestSavedTimestamp = null; // 用於在排行榜高亮最新紀錄
+
+    /* =========================================================
+     * 4. DOM 元素快取
+     * ========================================================= */
+    const gameBoard = document.getElementById('game-board');
+    const timerBox = document.getElementById('timer-box');
+    const timerVal = document.getElementById('timer-val');
+    const scoreVal = document.getElementById('score-val');
+    const comboVal = document.getElementById('combo-val');
+    const popupLayer = document.getElementById('popup-layer');
+
+    const startModal = document.getElementById('start-modal');
+    const gameoverModal = document.getElementById('gameover-modal');
+    const leaderboardModal = document.getElementById('leaderboard-modal');
+
+    const startBtn = document.getElementById('start-btn');
+    const saveScoreBtn = document.getElementById('save-score-btn');
+    const playAgainBtn = document.getElementById('play-again-btn');
+
+    const statScore = document.getElementById('stat-score');
+    const statMaxCombo = document.getElementById('stat-max-combo');
+    const statEvilCleared = document.getElementById('stat-evil-cleared');
+    const statAccuracy = document.getElementById('stat-accuracy');
+    const playerNameInput = document.getElementById('player-name');
+    const leaderboardTbody = document.getElementById('leaderboard-tbody');
+
+    /* =========================================================
+     * 5. 初始化棋盤
+     * ========================================================= */
+    function initBoard() {
+      gameBoard.innerHTML = '';
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'grid-cell';
+        cell.dataset.index = i;
+
+        cell.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          handleCellClick(i, cell, e);
+        });
+
+        gameBoard.appendChild(cell);
+        cellStates[i] = null;
+      }
+    }
+
+    /* =========================================================
+     * 6. 每輪角色生成邏輯 (2~5張照片，保底 1 邪惡 + 1 天使)
+     * ========================================================= */
+    function spawnRound() {
+      if (!isPlaying) return;
+
+      for (let i = 0; i < 9; i++) {
+        clearCell(i);
+      }
+
+      // 由於邪惡波波與天使波波各自保底 1 隻，每輪張數在 2 ~ 5 張之間
+      const totalCount = Math.floor(Math.random() * 4) + 2; // 2, 3, 4, 5
+      const availableIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8].sort(() => Math.random() - 0.5);
+      const chosenIndices = availableIndices.slice(0, totalCount);
+
+      // 雙保底：1 隻邪惡波波 + 1 隻天使波波
+      const roles = ['evil', 'angel'];
+
+      // 剩餘 (totalCount - 2) 張以 50% 機率隨機分配
+      for (let i = 2; i < totalCount; i++) {
+        roles.push(Math.random() < 0.5 ? 'angel' : 'evil');
+      }
+
+      // 隨機打散角色順序
+      roles.sort(() => Math.random() - 0.5);
+
+      currentRoundEvilsRemaining = roles.filter(r => r === 'evil').length;
+
+      chosenIndices.forEach((cellIdx, i) => {
+        const role = roles[i];
+        renderCharacter(cellIdx, role);
+      });
+    }
+
+    function renderCharacter(cellIndex, role) {
+      const cell = gameBoard.children[cellIndex];
+      cellStates[cellIndex] = {
+        type: role,
+        isCooling: false,
+        isDead: false
+      };
+
+      const imgContainer = document.createElement('div');
+      imgContainer.className = 'character-img pop-in';
+      imgContainer.style.width = '100%';
+      imgContainer.style.height = '100%';
+      imgContainer.style.display = 'flex';
+      imgContainer.style.alignItems = 'center';
+      imgContainer.style.justifyContent = 'center';
+
+      let imgPath = '';
+      let assetIndex = 0;
+
+      if (role === 'evil') {
+        assetIndex = Math.floor(Math.random() * EVIL_IMAGES.length);
+        imgPath = EVIL_IMAGES[assetIndex];
+      } else {
+        assetIndex = Math.floor(Math.random() * ANGEL_IMAGES.length);
+        imgPath = ANGEL_IMAGES[assetIndex];
+      }
+
+      const img = new Image();
+      img.src = imgPath;
+      img.className = 'character-img';
+      img.draggable = false;
+
+      img.onerror = () => {
+        imgContainer.innerHTML = getFallbackSVG(role, assetIndex);
+      };
+
+      imgContainer.appendChild(img);
+      cell.appendChild(imgContainer);
+    }
+
+    function clearCell(cellIndex) {
+      const cell = gameBoard.children[cellIndex];
+      cell.innerHTML = '';
+      cell.classList.remove('shake-angel', 'cell-empty-depressed');
+      cellStates[cellIndex] = null;
+    }
+
+    /* =========================================================
+     * 7. 點擊判定與防呆處理
+     * ========================================================= */
+    function handleCellClick(index, cellElement, event) {
+      if (!isPlaying) return;
+
+      const state = cellStates[index];
+
+      // A. 點擊空格子
+      if (!state || !state.type) {
+        emptyClickCount++;
+        sound.playEmptyClick();
+
+        cellElement.classList.add('cell-empty-depressed');
+        setTimeout(() => {
+          cellElement.classList.remove('cell-empty-depressed');
+        }, 120);
+        return;
+      }
+
+      // B. 點擊邪惡波波
+      if (state.type === 'evil') {
+        if (state.isDead) return;
+
+        state.isDead = true;
+        evilClearedCount++;
+        combo++;
+        if (combo > maxCombo) maxCombo = combo;
+
+        let addedScore = 1;
+        if (combo >= 11) {
+          addedScore = 3;
+        } else if (combo >= 6) {
+          addedScore = 2;
+        }
+        score += addedScore;
+
+        sound.playHitEvil(combo);
+        updateHUD();
+
+        showPopupText(cellElement, `+${addedScore}!`, '#ff4757', true);
+
+        const charWrapper = cellElement.firstChild;
+        if (charWrapper) {
+          charWrapper.classList.add('dead-pop');
+        }
+
+        currentRoundEvilsRemaining--;
+
+        if (currentRoundEvilsRemaining <= 0) {
+          setTimeout(() => {
+            if (isPlaying) spawnRound();
+          }, 180);
+        }
+        return;
+      }
+
+      // C. 點擊天使波波
+      if (state.type === 'angel') {
+        if (state.isCooling) return;
+
+        state.isCooling = true;
+        angelMistakeCount++;
+
+        combo = 0;
+        updateHUD();
+
+        sound.playHitAngel();
+        showPopupNotice(cellElement, `不要打天使波波!`);
+
+        const charWrapper = cellElement.firstChild;
+        if (charWrapper) {
+          charWrapper.classList.remove('shake-angel');
+          void charWrapper.offsetWidth;
+          charWrapper.classList.add('shake-angel');
+        }
+
+        setTimeout(() => {
+          if (cellStates[index]) {
+            cellStates[index].isCooling = false;
+          }
+          if (charWrapper) {
+            charWrapper.classList.remove('shake-angel');
+          }
+        }, 280);
+      }
+    }
+
+    /* =========================================================
+     * 8. 介面視覺動態與浮動文字
+     * ========================================================= */
+    function updateHUD() {
+      scoreVal.textContent = score;
+      comboVal.textContent = combo;
+
+      if (combo > 0) {
+        comboVal.classList.add('combo-active', 'combo-bounce');
+        setTimeout(() => comboVal.classList.remove('combo-bounce'), 250);
+      } else {
+        comboVal.classList.remove('combo-active');
+      }
+    }
+
+    function showPopupText(targetEl, text, color, isScore = false) {
+      const rect = targetEl.getBoundingClientRect();
+      const parentRect = popupLayer.getBoundingClientRect();
+
+      const popup = document.createElement('div');
+      popup.className = 'score-popup';
+      popup.textContent = text;
+      popup.style.color = color;
+      popup.style.left = `${rect.left - parentRect.left + rect.width / 2}px`;
+      popup.style.top = `${rect.top - parentRect.top + rect.height / 3}px`;
+
+      popupLayer.appendChild(popup);
+      setTimeout(() => popup.remove(), 600);
+    }
+
+    function showPopupNotice(targetEl, text) {
+      const rect = targetEl.getBoundingClientRect();
+      const parentRect = popupLayer.getBoundingClientRect();
+
+      const popup = document.createElement('div');
+      popup.className = 'notice-popup';
+      popup.textContent = text;
+      popup.style.left = `${rect.left - parentRect.left + rect.width / 2}px`;
+      popup.style.top = `${rect.top - parentRect.top + 10}px`;
+
+      popupLayer.appendChild(popup);
+      setTimeout(() => popup.remove(), 550);
+    }
+
+    /* =========================================================
+     * 9. 倒數計時與流程控制
+     * ========================================================= */
+    function startGame() {
+      sound.init();
+
+      timeLeft = TOTAL_TIME;
+      score = 0;
+      combo = 0;
+      maxCombo = 0;
+      evilClearedCount = 0;
+      angelMistakeCount = 0;
+      emptyClickCount = 0;
+      currentRoundEvilsRemaining = 0;
+
+      updateHUD();
+      timerVal.textContent = `${timeLeft}s`;
+      timerBox.classList.remove('warning');
+      timerVal.classList.remove('warning');
+
+      startModal.style.display = 'none';
+      gameoverModal.style.display = 'none';
+      leaderboardModal.style.display = 'none';
+
+      isPlaying = true;
+      initBoard();
+      spawnRound();
+
+      clearInterval(timerInterval);
+      timerInterval = setInterval(gameTick, 1000);
+    }
+
+    function gameTick() {
+      timeLeft--;
+      timerVal.textContent = `${timeLeft}s`;
+
+      if (timeLeft <= 10 && timeLeft > 0) {
+        timerBox.classList.add('warning');
+        timerVal.classList.add('warning');
+        sound.playWarningBeep();
+      }
+
+      if (timeLeft <= 0) {
+        endGame();
+      }
+    }
+
+    function endGame() {
+      isPlaying = false;
+      clearInterval(timerInterval);
+      sound.playGameOver();
+
+      for (let i = 0; i < 9; i++) {
+        clearCell(i);
+      }
+
+      const totalClicks = evilClearedCount + angelMistakeCount + emptyClickCount;
+      let accuracyRate = 0;
+      if (totalClicks > 0) {
+        accuracyRate = ((evilClearedCount / totalClicks) * 100).toFixed(1);
+      }
+
+      statScore.textContent = score;
+      statMaxCombo.textContent = maxCombo;
+      statEvilCleared.textContent = evilClearedCount;
+      statAccuracy.textContent = `${accuracyRate}%`;
+
+      gameoverModal.style.display = 'flex';
+    }
+
+    /* =========================================================
+     * 10. Session 排行榜儲存與排序機制
+     * ========================================================= */
+    const SESSION_STORAGE_KEY = 'save_popo_rankings';
+
+    function getSessionRankings() {
+      try {
+        const data = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        return data ? JSON.parse(data) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveSessionRecord() {
+      const name = (playerNameInput.value || '波波守護者').trim();
+      const totalClicks = evilClearedCount + angelMistakeCount + emptyClickCount;
+      const accuracyRate = totalClicks > 0 ? parseFloat(((evilClearedCount / totalClicks) * 100).toFixed(1)) : 0;
+      latestSavedTimestamp = Date.now();
+
+      const record = {
+        id: latestSavedTimestamp,
+        name: name,
+        score: score,
+        accuracy: accuracyRate,
+        maxCombo: maxCombo,
+        date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      const list = getSessionRankings();
+      list.push(record);
+
+      // 排序依據：總分 DESC -> 準確率 DESC -> 最高連擊數 DESC
+      list.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
+        return b.maxCombo - a.maxCombo;
+      });
+
+      try {
+        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(list));
+      } catch (e) {
+        console.error('SessionStorage 寫入失敗', e);
+      }
+
+      // 儲存完成後，切換至排行榜彈窗檢視成績
+      renderLeaderboardTable();
+      gameoverModal.style.display = 'none';
+      leaderboardModal.style.display = 'flex';
+    }
+
+    function renderLeaderboardTable() {
+      const list = getSessionRankings();
+      leaderboardTbody.innerHTML = '';
+
+      if (list.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="5" style="text-align:center; color:#a4b0be; padding:16px;">尚無紀錄，成為第一位守護者吧！</td>`;
+        leaderboardTbody.appendChild(row);
+        return;
+      }
+
+      list.slice(0, 10).forEach((item, idx) => {
+        const row = document.createElement('tr');
+        let rankClass = '';
+        if (idx === 0) rankClass = 'lb-rank-1';
+        else if (idx === 1) rankClass = 'lb-rank-2';
+        else if (idx === 2) rankClass = 'lb-rank-3';
+
+        // 剛剛存入的成績加上醒目底色
+        if (item.id === latestSavedTimestamp) {
+          row.classList.add('lb-row-current');
+        }
+
+        row.innerHTML = `
+          <td class="${rankClass}">#${idx + 1}</td>
+          <td style="max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.name)}</td>
+          <td style="color:#ee5253; font-weight:800;">${item.score}</td>
+          <td>${item.accuracy}%</td>
+          <td>${item.maxCombo}</td>
+        `;
+        leaderboardTbody.appendChild(row);
+      });
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    /* =========================================================
+     * 11. 事件監聽綁定
+     * ========================================================= */
+    startBtn.addEventListener('click', () => {
+      startGame();
+    });
+
+    saveScoreBtn.addEventListener('click', () => {
+      saveSessionRecord();
+    });
+
+    playAgainBtn.addEventListener('click', () => {
+      startGame();
+    });
+
+    initBoard();
+  </script>
+</body>
+</html>
