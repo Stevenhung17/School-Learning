@@ -55,6 +55,37 @@
       position: relative;
     }
 
+    /* 右上角音效切換按鈕 */
+    .audio-toggle-btn {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 45;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid #ffd32a;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: transform 0.1s ease, background-color 0.2s ease;
+      outline: none;
+    }
+
+    .audio-toggle-btn:active {
+      transform: scale(0.92);
+    }
+
+    .audio-toggle-btn.muted {
+      background: #f1f2f6;
+      border-color: #ced6e0;
+      filter: grayscale(1);
+    }
+
     /* 標題與說明 */
     .header-area {
       text-align: center;
@@ -79,7 +110,7 @@
       color: #57606f;
       margin-top: 4px;
       line-height: 1.4;
-      padding: 0 8px;
+      padding: 0 36px 0 8px;
     }
 
     /* HUD 頂部資訊列 */
@@ -281,7 +312,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(47, 53, 66, 0.75);
+      background: rgba(47, 53, 66, 0.78);
       backdrop-filter: blur(4px);
       -webkit-backdrop-filter: blur(4px);
       border-radius: 26px;
@@ -289,7 +320,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 16px;
       z-index: 30;
       color: #2f3542;
       animation: fadeIn 0.25s ease-out;
@@ -302,24 +333,79 @@
 
     .modal-card {
       background: #ffffff;
-      width: 95%;
+      width: 96%;
       border-radius: 22px;
-      padding: 22px 18px;
+      padding: 18px 14px;
       box-shadow: 0 15px 30px rgba(0,0,0,0.25);
       border: 4px solid #fed330;
       text-align: center;
       display: flex;
       flex-direction: column;
       align-items: center;
-      max-height: 92%;
+      max-height: 94%;
       overflow-y: auto;
     }
 
     .modal-title {
-      font-size: 24px;
+      font-size: 23px;
       font-weight: 900;
       color: #eb3b5a;
+      margin-bottom: 6px;
+    }
+
+    /* 邪惡波波目標展示區 (通緝櫥窗) */
+    .target-showcase-box {
+      width: 100%;
+      background: #fff5f5;
+      border: 2px dashed #ff7675;
+      border-radius: 16px;
+      padding: 10px 8px;
+      margin: 10px 0 12px 0;
+    }
+
+    .target-box-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #d63031;
       margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .target-images-row {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .target-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 6px 4px;
+      border: 2px solid #ffb8b8;
+      box-shadow: 0 2px 6px rgba(255, 118, 117, 0.15);
+      flex: 1;
+      max-width: 90px;
+    }
+
+    .target-card img, .target-card .svg-fallback {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+    }
+
+    .target-card span {
+      font-size: 11px;
+      font-weight: 800;
+      color: #c0392b;
+      margin-top: 4px;
+      white-space: nowrap;
     }
 
     .btn {
@@ -332,7 +418,7 @@
       border-radius: 50px;
       cursor: pointer;
       box-shadow: 0 5px 0 #b33939, 0 8px 15px rgba(238, 82, 83, 0.4);
-      margin-top: 14px;
+      margin-top: 10px;
       transition: all 0.1s ease;
       width: 80%;
       max-width: 240px;
@@ -430,6 +516,9 @@
 <body>
 
   <div class="game-container">
+    <!-- 右上角音效開關按鈕 (🔊 / 🔇) -->
+    <button class="audio-toggle-btn" id="audio-toggle-btn" title="切換音效與音樂" aria-label="切換靜音">🔊</button>
+
     <!-- 標題與簡介 -->
     <div class="header-area">
       <div class="game-title">
@@ -457,23 +546,42 @@
     </div>
 
     <!-- 九宮格打擊棋盤 -->
-    <div class="grid-board" id="game-board">
-      <!-- 由 JS 動態生成 9 個格子 -->
-    </div>
+    <div class="grid-board" id="game-board"></div>
 
     <!-- 浮動文字容器 -->
     <div id="popup-layer" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; overflow: hidden; border-radius: 26px;"></div>
 
-    <!-- 1. 開始遊戲彈窗 -->
+    <!-- 1. 開始遊戲彈窗 (含 3 隻邪惡波波通緝展示) -->
     <div class="modal-overlay" id="start-modal">
       <div class="modal-card">
-        <div style="font-size: 48px; margin-bottom: 4px;">🏰</div>
+        <div style="font-size: 40px; margin-bottom: 2px;">🏰</div>
         <div class="modal-title">拯救波波大冒險</div>
-        <p style="font-size: 14px; color: #57606f; line-height: 1.6; margin-bottom: 12px;">
-          限時 <b>60 秒</b>！<br>
-          🔥 點擊消滅<b>邪惡波波</b>，每輪清空即可過關。<br>
-          🛡️ 每輪都有<b>天使波波</b>守護，千萬別打到喔！<br>
-          ⭐ 連續擊中邪惡波波可觸發 <b>Combo 最高 3 倍加分</b>！
+        
+        <!-- 目標邪惡波波展示櫥窗 -->
+        <div class="target-showcase-box">
+          <div class="target-box-title">
+            <span>🎯</span> 認清目標！點擊消滅這三隻邪惡波波：
+          </div>
+          <div class="target-images-row">
+            <div class="target-card">
+              <img src="Pictures/Evil_Popo_1.png" alt="邪惡國王" onerror="this.outerHTML=getFallbackSVG('evil', 0)">
+              <span>邪惡波波 1</span>
+            </div>
+            <div class="target-card">
+              <img src="Pictures/Evil_Popo_2.png" alt="惡魔皇后" onerror="this.outerHTML=getFallbackSVG('evil', 1)">
+              <span>邪惡波波 2</span>
+            </div>
+            <div class="target-card">
+              <img src="Pictures/Evil_Popo_3.png" alt="搗蛋隨從" onerror="this.outerHTML=getFallbackSVG('evil', 2)">
+              <span>邪惡波波 3</span>
+            </div>
+          </div>
+        </div>
+
+        <p style="font-size: 13px; color: #57606f; line-height: 1.5; margin-bottom: 8px;">
+          限時 <b>60 秒</b>！每輪清空場上所有邪惡波波即可晉級。<br>
+          🛡️ 每輪都有<b>天使波波</b>守護，千萬別誤擊喔！<br>
+          ⭐ 連擊擊中邪惡波波可觸發 <b>Combo 最高 3 倍加分</b>！
         </p>
         <button class="btn" id="start-btn">開始拯救！</button>
       </div>
@@ -527,9 +635,7 @@
                 <th style="width: 16%;">連擊</th>
               </tr>
             </thead>
-            <tbody id="leaderboard-tbody">
-              <!-- JS 動態插入排列表 -->
-            </tbody>
+            <tbody id="leaderboard-tbody"></tbody>
           </table>
         </div>
         <button class="btn" id="play-again-btn" style="margin-top: 16px;">再玩一次！</button>
@@ -540,11 +646,17 @@
 
   <script>
     /* =========================================================
-     * 1. 音效系統 (純 Web Audio API 合成，零外部依賴)
+     * 1. 完整音訊系統 (Web Audio API 合成音效 + 背景音樂 MP3 + 靜音切換)
      * ========================================================= */
     class SoundController {
       constructor() {
         this.ctx = null;
+        this.isMuted = false;
+
+        // 背景音樂實例 (Music/Save-popo-background-music-gemini.mp3)
+        this.bgm = new Audio('Music/Save-popo-background-music-gemini.mp3');
+        this.bgm.loop = true;
+        this.bgm.volume = 0.22; // 柔和陪襯音量
       }
 
       init() {
@@ -559,9 +671,44 @@
         }
       }
 
-      // 擊中邪惡波波：明亮清脆向上音階 (C5 -> A5)
+      // 播放背景音樂：restart 為 true 時從頭播放並恢復循環
+      playBGM(restart = false) {
+        if (restart) {
+          this.bgm.currentTime = 0;
+        }
+        this.bgm.loop = true;
+        if (this.isMuted) return;
+        this.bgm.play().catch(e => {
+          console.log("BGM 播放等待互動", e);
+        });
+      }
+
+      // 遊戲時間歸零：音樂不暫停，取消 loop 讓當前這首歌播完自然停止
+      onGameEnd() {
+        if (this.bgm) {
+          this.bgm.loop = false;
+        }
+      }
+
+      pauseBGM() {
+        if (this.bgm) {
+          this.bgm.pause();
+        }
+      }
+
+      toggleMute() {
+        this.isMuted = !this.isMuted;
+        if (this.bgm) {
+          this.bgm.muted = this.isMuted;
+        }
+        if (!this.isMuted && isPlaying) {
+          this.playBGM(false);
+        }
+        return this.isMuted;
+      }
+
       playHitEvil(comboCount) {
-        if (!this.ctx) return;
+        if (this.isMuted || !this.ctx) return;
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -571,7 +718,7 @@
         osc.frequency.setValueAtTime(523.25 * pitchMultiplier, now);
         osc.frequency.exponentialRampToValueAtTime(880 * pitchMultiplier, now + 0.12);
 
-        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.setValueAtTime(0.38, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
 
         osc.connect(gain);
@@ -581,9 +728,8 @@
         osc.stop(now + 0.16);
       }
 
-      // 誤擊天使波波：下墜鋸齒失誤音 (A3 -> A2)
       playHitAngel() {
-        if (!this.ctx) return;
+        if (this.isMuted || !this.ctx) return;
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -592,7 +738,7 @@
         osc.frequency.setValueAtTime(220, now);
         osc.frequency.exponentialRampToValueAtTime(110, now + 0.22);
 
-        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.setValueAtTime(0.32, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
 
         osc.connect(gain);
@@ -602,9 +748,8 @@
         osc.stop(now + 0.26);
       }
 
-      // 點擊空格：極短輕微敲擊木音
       playEmptyClick() {
-        if (!this.ctx) return;
+        if (this.isMuted || !this.ctx) return;
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -622,9 +767,8 @@
         osc.stop(now + 0.05);
       }
 
-      // 最後 10 秒倒數警示音：高亢提示嗶聲
       playWarningBeep() {
-        if (!this.ctx) return;
+        if (this.isMuted || !this.ctx) return;
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -632,7 +776,7 @@
         osc.type = 'square';
         osc.frequency.setValueAtTime(880, now);
 
-        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.setValueAtTime(0.24, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
 
         osc.connect(gain);
@@ -642,9 +786,8 @@
         osc.stop(now + 0.1);
       }
 
-      // 遊戲結束號角音
       playGameOver() {
-        if (!this.ctx) return;
+        if (this.isMuted || !this.ctx) return;
         const notes = [440, 554.37, 659.25, 880];
         notes.forEach((freq, idx) => {
           const now = this.ctx.currentTime + idx * 0.1;
@@ -654,7 +797,7 @@
           osc.type = 'triangle';
           osc.frequency.setValueAtTime(freq, now);
 
-          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.setValueAtTime(0.28, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
 
           osc.connect(gain);
@@ -735,7 +878,7 @@
 
     let currentRoundEvilsRemaining = 0;
     const cellStates = Array(9).fill(null);
-    let latestSavedTimestamp = null; // 用於在排行榜高亮最新紀錄
+    let latestSavedTimestamp = null;
 
     /* =========================================================
      * 4. DOM 元素快取
@@ -746,6 +889,7 @@
     const scoreVal = document.getElementById('score-val');
     const comboVal = document.getElementById('combo-val');
     const popupLayer = document.getElementById('popup-layer');
+    const audioToggleBtn = document.getElementById('audio-toggle-btn');
 
     const startModal = document.getElementById('start-modal');
     const gameoverModal = document.getElementById('gameover-modal');
@@ -792,22 +936,16 @@
         clearCell(i);
       }
 
-      // 由於邪惡波波與天使波波各自保底 1 隻，每輪張數在 2 ~ 5 張之間
-      const totalCount = Math.floor(Math.random() * 4) + 2; // 2, 3, 4, 5
+      const totalCount = Math.floor(Math.random() * 4) + 2;
       const availableIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8].sort(() => Math.random() - 0.5);
       const chosenIndices = availableIndices.slice(0, totalCount);
 
-      // 雙保底：1 隻邪惡波波 + 1 隻天使波波
       const roles = ['evil', 'angel'];
-
-      // 剩餘 (totalCount - 2) 張以 50% 機率隨機分配
       for (let i = 2; i < totalCount; i++) {
         roles.push(Math.random() < 0.5 ? 'angel' : 'evil');
       }
 
-      // 隨機打散角色順序
       roles.sort(() => Math.random() - 0.5);
-
       currentRoundEvilsRemaining = roles.filter(r => r === 'evil').length;
 
       chosenIndices.forEach((cellIdx, i) => {
@@ -996,10 +1134,11 @@
     }
 
     /* =========================================================
-     * 9. 倒數計時與流程控制
+     * 9. 倒數計時與流程控制 (修復結算異常)
      * ========================================================= */
     function startGame() {
       sound.init();
+      sound.playBGM(true); // 從頭播放並確保循環
 
       timeLeft = TOTAL_TIME;
       score = 0;
@@ -1034,7 +1173,11 @@
       if (timeLeft <= 10 && timeLeft > 0) {
         timerBox.classList.add('warning');
         timerVal.classList.add('warning');
-        sound.playWarningBeep();
+        try {
+          sound.playWarningBeep();
+        } catch (e) {
+          console.warn("警示音播放例外", e);
+        }
       }
 
       if (timeLeft <= 0) {
@@ -1045,7 +1188,14 @@
     function endGame() {
       isPlaying = false;
       clearInterval(timerInterval);
-      sound.playGameOver();
+
+      // 防禦性呼叫音樂與音效
+      try {
+        sound.onGameEnd(); // 取消循環，讓整首背景音樂自然播完
+        sound.playGameOver(); // 播放結束音
+      } catch (err) {
+        console.error("音訊停止過程發生例外：", err);
+      }
 
       for (let i = 0; i < 9; i++) {
         clearCell(i);
@@ -1057,11 +1207,13 @@
         accuracyRate = ((evilClearedCount / totalClicks) * 100).toFixed(1);
       }
 
+      // 填入結算數據
       statScore.textContent = score;
       statMaxCombo.textContent = maxCombo;
       statEvilCleared.textContent = evilClearedCount;
       statAccuracy.textContent = `${accuracyRate}%`;
 
+      // 確實彈出結算畫面
       gameoverModal.style.display = 'flex';
     }
 
@@ -1097,7 +1249,6 @@
       const list = getSessionRankings();
       list.push(record);
 
-      // 排序依據：總分 DESC -> 準確率 DESC -> 最高連擊數 DESC
       list.sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
         if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
@@ -1110,7 +1261,6 @@
         console.error('SessionStorage 寫入失敗', e);
       }
 
-      // 儲存完成後，切換至排行榜彈窗檢視成績
       renderLeaderboardTable();
       gameoverModal.style.display = 'none';
       leaderboardModal.style.display = 'flex';
@@ -1134,7 +1284,6 @@
         else if (idx === 1) rankClass = 'lb-rank-2';
         else if (idx === 2) rankClass = 'lb-rank-3';
 
-        // 剛剛存入的成績加上醒目底色
         if (item.id === latestSavedTimestamp) {
           row.classList.add('lb-row-current');
         }
@@ -1169,6 +1318,13 @@
 
     playAgainBtn.addEventListener('click', () => {
       startGame();
+    });
+
+    audioToggleBtn.addEventListener('click', () => {
+      sound.init();
+      const isMuted = sound.toggleMute();
+      audioToggleBtn.textContent = isMuted ? '🔇' : '🔊';
+      audioToggleBtn.classList.toggle('muted', isMuted);
     });
 
     initBoard();
