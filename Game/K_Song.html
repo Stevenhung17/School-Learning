@@ -126,11 +126,6 @@
   <script>
     'use strict';
 
-    /**
-     * 安全字串跳脫工具，防止 XSS
-     * @param {string} str 
-     * @returns {string}
-     */
     function escapeHTML(str) {
       if (typeof str !== 'string') return '';
       return str.replace(/[&<>"'/`]/g, function (s) {
@@ -147,7 +142,6 @@
       });
     }
 
-    // 模擬歌曲標準音軌 (UltraStar/MIDI 簡化格式: start, end, midiNote)
     const SONG_NOTES = [
       { start: 1.0, end: 3.0, midi: 60, name: "C4" },
       { start: 3.0, end: 5.0, midi: 62, name: "D4" },
@@ -170,28 +164,22 @@
     const targetMidiEl = document.getElementById('targetMidi');
     const currentMidiEl = document.getElementById('currentMidi');
     const totalScoreEl = document.getElementById('totalScore');
-    const statusMessageEl = document.getElementById('statusMessage');
     const canvas = document.getElementById('visualizer');
     const ctx = canvas.getContext('2d');
 
-    // 頻率 (Hz) 轉 MIDI 浮點數公式
     function freqToMidi(freq) {
       return 69 + 12 * Math.log2(freq / 440);
     }
 
-    // 核心演算法：自相關法 (Autocorrelation) 抓取基頻 F0
     function autoCorrelate(buf, sampleRate) {
       const SIZE = buf.length;
-      
-      // 計算均方根 (RMS) 判斷音量
       let sumOfSquares = 0;
       for (let i = 0; i < SIZE; i++) {
         sumOfSquares += buf[i] * buf[i];
       }
       const rms = Math.sqrt(sumOfSquares / SIZE);
-      if (rms < 0.015) return -1; // 雜訊閥值，低於此判定為靜音
+      if (rms < 0.015) return -1;
 
-      // 剪裁靜音區間
       let r1 = 0, r2 = SIZE - 1, thres = 0.2;
       for (let i = 0; i < SIZE / 2; i++) {
         if (Math.abs(buf[i]) < thres) { r1 = i; break; }
@@ -202,14 +190,12 @@
       const trimmedBuf = buf.slice(r1, r2);
       const c = new Float32Array(trimmedBuf.length);
 
-      // 自相關比對
       for (let i = 0; i < trimmedBuf.length; i++) {
         for (let j = 0; j < trimmedBuf.length - i; j++) {
           c[i] += trimmedBuf[j] * trimmedBuf[j + i];
         }
       }
 
-      // 尋找主週期
       let d = 0;
       while (c[d] > c[d + 1]) d++;
       let maxval = -1, maxpos = -1;
@@ -221,7 +207,6 @@
       }
       let T0 = maxpos;
 
-      // 二次內插修正
       const x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
       const a = (x1 + x3 - 2 * x2) / 2;
       const b = (x3 - x1) / 2;
@@ -234,19 +219,15 @@
       try {
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         if (!AudioContextClass) {
-          alert("很抱歉，您的瀏覽器不支援 Web Audio API。");
+          alert("瀏覽器不支援 Web Audio API");
           return;
         }
 
         audioContext = new AudioContextClass();
-        
-        // 請求麥克風
+
+        // 簡化 constraints，提高裝置相容性
         audioStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: false
-          }
+          audio: true
         });
 
         const source = audioContext.createMediaStreamSource(audioStream);
@@ -261,8 +242,20 @@
 
         animationFrameId = requestAnimationFrame(updateLoop);
       } catch (err) {
-        // 資安防護：不向使用者直接顯示原始 err.message，以防洩漏環境細節
-        alert("無法啟動麥克風，請檢查瀏覽器麥克風權限設定後再試一次。");
+        // 重設按鈕狀態
+        startBtn.disabled = false;
+        startBtn.textContent = "啟動麥克風與評分";
+
+        // 依據常見的標準例外狀況提供對應指引
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          alert("麥克風權限已被拒絕。請至網址列左側或作業系統設定中允許麥克風存取權限。");
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          alert("未偵測到可用的麥克風設備，請確認硬體連線是否正常。");
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          alert("無法存取麥克風硬體，可能正被其他應用程式（如會議軟體）佔用中。");
+        } else {
+          alert("無法啟動麥克風，請檢查瀏覽器設定或重新整理頁面。");
+        }
       }
     }
 
@@ -275,7 +268,6 @@
       const freq = autoCorrelate(buffer, audioContext.sampleRate);
       const currentTime = audioContext.currentTime - startTime;
 
-      // 1. 尋找當前時間對應的目標音符
       const currentTarget = SONG_NOTES.find(n => currentTime >= n.start && currentTime <= n.end);
 
       let currentMidi = null;
@@ -288,7 +280,6 @@
         currentMidiEl.textContent = "--";
       }
 
-      // 2. 音準即時判定與計分
       if (currentTarget) {
         targetMidiEl.textContent = escapeHTML(`${currentTarget.name} (${currentTarget.midi})`);
         totalEvaluatedFrames++;
@@ -307,10 +298,8 @@
 
       totalScoreEl.textContent = escapeHTML(String(score));
 
-      // 3. 即時繪製
       drawVisualization(currentTarget, currentMidi, frameHit);
 
-      // 模擬歌曲結束
       if (currentTime > 12.0) {
         stopKaraoke();
         return;
@@ -324,7 +313,6 @@
       startBtn.textContent = "評分完成！";
       startBtn.disabled = true;
 
-      // 釋放麥克風串流與 AudioContext 資源，避免記憶體洩漏
       if (audioStream) {
         audioStream.getTracks().forEach(track => track.stop());
         audioStream = null;
@@ -341,7 +329,6 @@
     function drawVisualization(target, currentMidi, isHit) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 繪製目標音高水平線
       if (target) {
         const targetY = canvas.height - ((target.midi - 55) / 20) * canvas.height;
         ctx.strokeStyle = "#38bdf8";
@@ -352,7 +339,6 @@
         ctx.stroke();
       }
 
-      // 繪製當前演唱音高
       if (currentMidi) {
         const userY = canvas.height - ((currentMidi - 55) / 20) * canvas.height;
         ctx.fillStyle = isHit ? "#4ade80" : "#ef4444";
@@ -362,7 +348,6 @@
       }
     }
 
-    // 事件監聽綁定
     startBtn.addEventListener('click', () => {
       startKaraoke();
     });
