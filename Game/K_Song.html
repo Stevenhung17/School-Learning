@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>純前端 K 歌即時音高偵測與評分 MVP</title>
+
+  <!-- 資安強制規範：安全標頭 (CSP 與防護設定) -->
+  <meta http-equiv="Content-Security-Policy"
+        content="
+          default-src 'self';
+          script-src 'self' 'unsafe-inline';
+          style-src 'self' 'unsafe-inline';
+          img-src 'self' data:;
+          connect-src 'self';
+          font-src 'self';
+          object-src 'none';
+          base-uri 'self';
+          form-action 'self';
+          frame-ancestors 'none';
+        ">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #121214;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+      margin: 0;
+    }
+    .panel {
+      background: #1e1e24;
+      border-radius: 12px;
+      padding: 20px;
+      width: 100%;
+      max-width: 600px;
+      box-sizing: border-box;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 24px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover:not(:disabled) {
+      background: #1d4ed8;
+    }
+    button:disabled {
+      background: #4b5563;
+      cursor: not-allowed;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .metric-box {
+      background: #272730;
+      padding: 12px;
+      border-radius: 8px;
+    }
+    .metric-val {
+      font-size: 24px;
+      font-weight: bold;
+      color: #38bdf8;
+      margin-top: 6px;
+    }
+    canvas {
+      background: #09090b;
+      border-radius: 8px;
+      width: 100%;
+      height: 180px;
+      display: block;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <main class="panel" role="main">
+    <h1>K 歌即時評分引擎 MVP</h1>
+    <button id="startBtn" type="button" aria-live="polite">啟動麥克風與評分</button>
+
+    <div class="metrics" role="region" aria-label="即時歌唱數據">
+      <div class="metric-box">
+        <div>目標音高 (MIDI)</div>
+        <div class="metric-val" id="targetMidi">--</div>
+      </div>
+      <div class="metric-box">
+        <div>目前演唱 (MIDI)</div>
+        <div class="metric-val" id="currentMidi">--</div>
+      </div>
+      <div class="metric-box">
+        <div>即時累計總分</div>
+        <div class="metric-val" id="totalScore" style="color: #4ade80;">0</div>
+      </div>
+    </div>
+
+    <canvas id="visualizer" width="600" height="180" aria-label="音高視覺化畫布" role="img"></canvas>
+    <div id="statusMessage" class="sr-only" aria-live="assertive"></div>
+  </main>
+
+  <script>
+    'use strict';
+
+    /**
+     * 安全字串跳脫工具，防止 XSS
+     * @param {string} str 
+     * @returns {string}
+     */
+    function escapeHTML(str) {
+      if (typeof str !== 'string') return '';
+      return str.replace(/[&<>"'/`]/g, function (s) {
+        const entityMap = {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+          '/': '&#x2F;',
+          '`': '&#x60;'
+        };
+        return entityMap[s];
+      });
+    }
+
+    // 模擬歌曲標準音軌 (UltraStar/MIDI 簡化格式: start, end, midiNote)
+    const SONG_NOTES = [
+      { start: 1.0, end: 3.0, midi: 60, name: "C4" },
+      { start: 3.0, end: 5.0, midi: 62, name: "D4" },
+      { start: 5.0, end: 7.0, midi: 64, name: "E4" },
+      { start: 7.0, end: 9.0, midi: 65, name: "F4" },
+      { start: 9.0, end: 11.0, midi: 67, name: "G4" }
+    ];
+
+    let audioContext = null;
+    let analyser = null;
+    let audioStream = null;
+    let startTime = null;
+    let isRunning = false;
+    let score = 0;
+    let hitCount = 0;
+    let totalEvaluatedFrames = 0;
+    let animationFrameId = null;
+
+    const startBtn = document.getElementById('startBtn');
+    const targetMidiEl = document.getElementById('targetMidi');
+    const currentMidiEl = document.getElementById('currentMidi');
+    const totalScoreEl = document.getElementById('totalScore');
+    const statusMessageEl = document.getElementById('statusMessage');
+    const canvas = document.getElementById('visualizer');
+    const ctx = canvas.getContext('2d');
+
+    // 頻率 (Hz) 轉 MIDI 浮點數公式
+    function freqToMidi(freq) {
+      return 69 + 12 * Math.log2(freq / 440);
+    }
+
+    // 核心演算法：自相關法 (Autocorrelation) 抓取基頻 F0
+    function autoCorrelate(buf, sampleRate) {
+      const SIZE = buf.length;
+      
+      // 計算均方根 (RMS) 判斷音量
+      let sumOfSquares = 0;
+      for (let i = 0; i < SIZE; i++) {
+        sumOfSquares += buf[i] * buf[i];
+      }
+      const rms = Math.sqrt(sumOfSquares / SIZE);
+      if (rms < 0.015) return -1; // 雜訊閥值，低於此判定為靜音
+
+      // 剪裁靜音區間
+      let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+      for (let i = 0; i < SIZE / 2; i++) {
+        if (Math.abs(buf[i]) < thres) { r1 = i; break; }
+      }
+      for (let i = 1; i < SIZE / 2; i++) {
+        if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
+      }
+      const trimmedBuf = buf.slice(r1, r2);
+      const c = new Float32Array(trimmedBuf.length);
+
+      // 自相關比對
+      for (let i = 0; i < trimmedBuf.length; i++) {
+        for (let j = 0; j < trimmedBuf.length - i; j++) {
+          c[i] += trimmedBuf[j] * trimmedBuf[j + i];
+        }
+      }
+
+      // 尋找主週期
+      let d = 0;
+      while (c[d] > c[d + 1]) d++;
+      let maxval = -1, maxpos = -1;
+      for (let i = d; i < trimmedBuf.length; i++) {
+        if (c[i] > maxval) {
+          maxval = c[i];
+          maxpos = i;
+        }
+      }
+      let T0 = maxpos;
+
+      // 二次內插修正
+      const x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+      const a = (x1 + x3 - 2 * x2) / 2;
+      const b = (x3 - x1) / 2;
+      if (a) T0 = T0 - b / (2 * a);
+
+      return sampleRate / T0;
+    }
+
+    async function startKaraoke() {
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) {
+          alert("很抱歉，您的瀏覽器不支援 Web Audio API。");
+          return;
+        }
+
+        audioContext = new AudioContextClass();
+        
+        // 請求麥克風
+        audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: false
+          }
+        });
+
+        const source = audioContext.createMediaStreamSource(audioStream);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        source.connect(analyser);
+
+        startTime = audioContext.currentTime;
+        isRunning = true;
+        startBtn.disabled = true;
+        startBtn.textContent = "評分中...";
+
+        animationFrameId = requestAnimationFrame(updateLoop);
+      } catch (err) {
+        // 資安防護：不向使用者直接顯示原始 err.message，以防洩漏環境細節
+        alert("無法啟動麥克風，請檢查瀏覽器麥克風權限設定後再試一次。");
+      }
+    }
+
+    function updateLoop() {
+      if (!isRunning) return;
+
+      const buffer = new Float32Array(analyser.fftSize);
+      analyser.getFloatTimeDomainData(buffer);
+
+      const freq = autoCorrelate(buffer, audioContext.sampleRate);
+      const currentTime = audioContext.currentTime - startTime;
+
+      // 1. 尋找當前時間對應的目標音符
+      const currentTarget = SONG_NOTES.find(n => currentTime >= n.start && currentTime <= n.end);
+
+      let currentMidi = null;
+      let frameHit = false;
+
+      if (freq !== -1 && freq >= 70 && freq <= 1000) {
+        currentMidi = freqToMidi(freq);
+        currentMidiEl.textContent = escapeHTML(currentMidi.toFixed(1));
+      } else {
+        currentMidiEl.textContent = "--";
+      }
+
+      // 2. 音準即時判定與計分
+      if (currentTarget) {
+        targetMidiEl.textContent = escapeHTML(`${currentTarget.name} (${currentTarget.midi})`);
+        totalEvaluatedFrames++;
+
+        if (currentMidi !== null) {
+          const error = Math.abs(currentMidi - currentTarget.midi);
+          if (error <= 0.5) {
+            frameHit = true;
+            hitCount++;
+            score += Math.round(10 - (error / 0.5) * 5);
+          }
+        }
+      } else {
+        targetMidiEl.textContent = "休止符 / 等待中";
+      }
+
+      totalScoreEl.textContent = escapeHTML(String(score));
+
+      // 3. 即時繪製
+      drawVisualization(currentTarget, currentMidi, frameHit);
+
+      // 模擬歌曲結束
+      if (currentTime > 12.0) {
+        stopKaraoke();
+        return;
+      }
+
+      animationFrameId = requestAnimationFrame(updateLoop);
+    }
+
+    function stopKaraoke() {
+      isRunning = false;
+      startBtn.textContent = "評分完成！";
+      startBtn.disabled = true;
+
+      // 釋放麥克風串流與 AudioContext 資源，避免記憶體洩漏
+      if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+        audioStream = null;
+      }
+      if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close();
+        audioContext = null;
+      }
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    }
+
+    function drawVisualization(target, currentMidi, isHit) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 繪製目標音高水平線
+      if (target) {
+        const targetY = canvas.height - ((target.midi - 55) / 20) * canvas.height;
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(50, targetY);
+        ctx.lineTo(canvas.width - 50, targetY);
+        ctx.stroke();
+      }
+
+      // 繪製當前演唱音高
+      if (currentMidi) {
+        const userY = canvas.height - ((currentMidi - 55) / 20) * canvas.height;
+        ctx.fillStyle = isHit ? "#4ade80" : "#ef4444";
+        ctx.beginPath();
+        ctx.arc(canvas.width / 2, userY, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 事件監聽綁定
+    startBtn.addEventListener('click', () => {
+      startKaraoke();
+    });
+  </script>
+</body>
+</html>
