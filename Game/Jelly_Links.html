@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <!-- 資安強制規範：嚴格 HTTP 安全標頭與 CSP -->
+  <meta http-equiv="Content-Security-Policy"
+        content="
+          default-src 'self';
+          script-src 'self' 'unsafe-inline';
+          style-src 'self' 'unsafe-inline';
+          img-src 'self' data:;
+          connect-src 'self';
+          font-src 'self';
+          object-src 'none';
+          base-uri 'self';
+          form-action 'self';
+          frame-ancestors 'none';
+        ">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Jelly Links - 果凍串串 (16:9 難度加權版)</title>
+  <style>
+    :root {
+      --bg-color: #14111f;
+      --panel-bg: #251e3e;
+      --card-bg: rgba(255, 255, 255, 0.96);
+      --primary: #8e44ad;
+      --primary-hover: #9b59b6;
+      --accent: #f1c40f;
+      --danger: #e74c3c;
+      --text-main: #2c223b;
+      --text-light: #f3effa;
+      --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      font-family: var(--font-family);
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      color: var(--text-light);
+    }
+
+    /* 橫向 16:9 標準比例容器 */
+    .game-wrapper {
+      position: relative;
+      width: 96vw;
+      height: 54vw;
+      max-width: 1280px;
+      max-height: 720px;
+      background: #1e1833;
+      border-radius: 16px;
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.8), 0 0 0 4px #3d3161;
+      display: flex;
+      overflow: hidden;
+      padding: env(safe-area-inset-top, 8px) env(safe-area-inset-right, 8px) env(safe-area-inset-bottom, 8px) env(safe-area-inset-left, 8px);
+    }
+
+    @media (max-aspect-ratio: 16/9) {
+      .game-wrapper {
+        width: 96vw;
+        height: calc(96vw * 9 / 16);
+      }
+    }
+    @media (min-aspect-ratio: 16/9) {
+      .game-wrapper {
+        height: 94vh;
+        width: calc(94vh * 16 / 9);
+      }
+    }
+
+    /* 左側 HUD 資訊面板 */
+    aside.sidebar-hud {
+      width: 29%;
+      height: 100%;
+      background: var(--panel-bg);
+      border-radius: 12px 0 0 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 4px 0 15px rgba(0, 0, 0, 0.4);
+      z-index: 10;
+    }
+
+    .brand-title {
+      font-size: 20px;
+      font-weight: 900;
+      color: #e056fd;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .hud-card {
+      background: rgba(0, 0, 0, 0.28);
+      border-radius: 10px;
+      padding: 9px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      margin-top: 6px;
+    }
+
+    .hud-title-small {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #bfa8db;
+      text-transform: uppercase;
+    }
+
+    .hud-timer-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .timer-ring-container {
+      position: relative;
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+    }
+
+    .timer-svg {
+      transform: rotate(-90deg);
+      width: 44px;
+      height: 44px;
+    }
+
+    .timer-bg {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.15);
+      stroke-width: 4;
+    }
+
+    .timer-progress {
+      fill: none;
+      stroke: #2ecc71;
+      stroke-width: 4;
+      stroke-dasharray: 125.6;
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 0.1s linear, stroke 0.3s;
+    }
+
+    .timer-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 15px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .score-value {
+      font-size: 28px;
+      font-weight: 900;
+      color: #f1c40f;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .combo-display {
+      font-size: 20px;
+      font-weight: 800;
+      color: #e056fd;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .combo-badge {
+      background: #8e44ad;
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: transform 0.15s ease, background 0.15s;
+    }
+
+    .combo-badge.active {
+      background: #e74c3c;
+      transform: scale(1.1);
+    }
+
+    .difficulty-indicator {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #f39c12;
+      margin-top: 2px;
+    }
+
+    .controls-box {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: auto;
+    }
+
+    .select-input {
+      width: 100%;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #4a3b75;
+      font-size: 13px;
+      font-weight: 600;
+      background: #191428;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .btn-action {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(142, 68, 173, 0.4);
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .btn-action:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-action:active {
+      transform: scale(0.98);
+    }
+
+    /* 右側主遊戲區塊 (Canvas) */
+    main.board-container {
+      flex: 1;
+      height: 100%;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #171226;
+      border: 3px solid transparent;
+      transition: border-color 0.3s;
+    }
+
+    main.board-container.warning {
+      border-color: var(--danger);
+      box-shadow: inset 0 0 25px rgba(231, 76, 60, 0.6);
+      animation: pulseBorder 1s infinite alternate;
+    }
+
+    @keyframes pulseBorder {
+      from { border-color: rgba(231, 76, 60, 0.4); }
+      to { border-color: rgba(231, 76, 60, 1); }
+    }
+
+    canvas#gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    /* 浮層與彈窗面板 */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.82);
+      backdrop-filter: blur(4px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      opacity: 1;
+      transition: opacity 0.25s ease;
+    }
+
+    .overlay.hidden {
+      display: none !important;
+      opacity: 0;
+    }
+
+    .modal-card {
+      background: var(--card-bg);
+      width: 86%;
+      max-width: 440px;
+      padding: 20px;
+      border-radius: 14px;
+      text-align: center;
+      color: var(--text-main);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    }
+
+    .modal-title {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .modal-subtitle {
+      font-size: 13px;
+      color: #63527a;
+      margin-bottom: 12px;
+    }
+
+    .score-breakdown {
+      background: #f4effa;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-around;
+      font-size: 13px;
+      color: #3b2c4f;
+    }
+
+    .countdown-banner {
+      font-size: 96px;
+      font-weight: 900;
+      color: #f1c40f;
+      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+      animation: popZoom 0.8s ease-in-out;
+    }
+
+    @keyframes popZoom {
+      0% { transform: scale(0.3); opacity: 0; }
+      60% { transform: scale(1.15); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .player-input-section {
+      background: #faf6ff;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border: 1px solid #d5c8e8;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .text-input {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1.5px solid #a38ec2;
+      font-size: 14px;
+      font-weight: 600;
+      color: #2c223b;
+      user-select: text;
+      -webkit-user-select: text;
+      touch-action: auto;
+    }
+
+    .text-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .btn-submit {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 6px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-submit:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-submit:disabled {
+      background: #c3b7d6;
+      cursor: not-allowed;
+    }
+
+    .leaderboard-list {
+      list-style: none;
+      margin: 8px 0 12px 0;
+      max-height: 140px;
+      overflow-y: auto;
+      border: 1px solid #e1d6f0;
+      border-radius: 8px;
+    }
+
+    .leaderboard-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      font-size: 13px;
+      border-bottom: 1px solid #f4effa;
+    }
+
+    .leaderboard-item.highlight {
+      background: #f1e4fc;
+      font-weight: 700;
+      color: #8e44ad;
+    }
+
+    .diff-tag {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: #6c5ce7;
+      color: #fff;
+      margin-left: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="game-wrapper" role="application" aria-label="果凍串串消除遊戲">
+  <!-- 左側 HUD 側欄 -->
+  <aside class="sidebar-hud" role="complementary">
+    <div>
+      <div class="brand-title">✨ Jelly Links</div>
+
+      <!-- 剩餘時間 -->
+      <div class="hud-card">
+        <span class="hud-title-small">REMAINING TIME</span>
+        <div class="hud-timer-wrap">
+          <div class="timer-ring-container">
+            <svg class="timer-svg" viewBox="0 0 48 48">
+              <circle class="timer-bg" cx="24" cy="24" r="20"></circle>
+              <circle id="timerProgress" class="timer-progress" cx="24" cy="24" r="20"></circle>
+            </svg>
+            <span id="timerLabel" class="timer-text" aria-label="剩餘秒數">60</span>
+          </div>
+          <div>
+            <div style="font-size: 11px; opacity: 0.7;">限時挑戰</div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff;">60 秒模式</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 得分與難度加成 -->
+      <div class="hud-card">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span class="hud-title-small">TOTAL SCORE</span>
+          <span id="hudDiffMultiplier" class="difficulty-indicator">係數 1.00x</span>
+        </div>
+        <div id="scoreLabel" class="score-value" aria-live="polite">0</div>
+      </div>
+
+      <!-- Combo 連鎖倍率 -->
+      <div class="hud-card">
+        <span class="hud-title-small">CHAIN MULTIPLIER</span>
+        <div class="combo-display">
+          <span id="comboMultiplierText">1.0x</span>
+          <span id="comboBadge" class="combo-badge">Combo 0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 控制項 -->
+    <div class="controls-box">
+      <div>
+        <label for="cookieTypesSelect" class="hud-title-small" style="display: block; margin-bottom: 4px;">果凍種類與加權：</label>
+        <select id="cookieTypesSelect" class="select-input">
+          <option value="4">4 種果凍 (0.85x 輕鬆)</option>
+          <option value="5" selected>5 種果凍 (1.00x 標準)</option>
+          <option value="6">6 種果凍 (1.25x 挑戰)</option>
+          <option value="7">7 種果凍 (1.60x 大師極限)</option>
+        </select>
+      </div>
+      <button id="btnResetGame" type="button" class="btn-action">重新開局</button>
+    </div>
+  </aside>
+
+  <!-- 右側遊戲主盤面 -->
+  <main id="boardContainer" class="board-container" role="main">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- 開局浮層 -->
+    <div id="startOverlay" class="overlay">
+      <div class="modal-card">
+        <h1 class="modal-title">Jelly Links 果凍串串 ✨</h1>
+        <p class="modal-subtitle">滑動串連 3 顆以上相同果凍，挑戰 60 秒手速極限！</p>
+        <button id="btnStart" type="button" class="btn-action" style="font-size: 16px; padding: 12px;">開始挑戰</button>
+      </div>
+    </div>
+
+    <!-- 倒數浮層 -->
+    <div id="readyOverlay" class="overlay hidden">
+      <div id="countdownBanner" class="countdown-banner">3</div>
+    </div>
+
+    <!-- 結算浮層 -->
+    <div id="finishOverlay" class="overlay hidden">
+      <div class="modal-card">
+        <h2 class="modal-title">挑戰結束！時間到</h2>
+        
+        <!-- 分數細項拆解 -->
+        <div class="score-breakdown">
+          <div>盤面得分: <strong id="rawScoreText">0</strong></div>
+          <div>×</div>
+          <div>難度加權: <strong id="diffMultiplierText">1.00x</strong></div>
+          <div>=</div>
+          <div>最終總分: <strong id="finalScoreLabel" style="color: #8e44ad; font-size: 15px;">0</strong></div>
+        </div>
+
+        <!-- 玩家名稱輸入 -->
+        <div id="playerInputSection" class="player-input-section">
+          <label for="playerNameInput" style="font-size: 12px; font-weight: 700; color: #433359; display: block; text-align: left;">請輸入玩家名稱記錄榜單：</label>
+          <div class="input-group">
+            <input id="playerNameInput" type="text" class="text-input" placeholder="例如：連線高手" maxlength="12" autocomplete="off" />
+            <button id="btnSubmitScore" type="button" class="btn-submit">送出成績</button>
+          </div>
+        </div>
+
+        <h3 style="font-size: 13px; text-align: left; margin-bottom: 4px; color: #433359; font-weight: 700;">本次即時排行榜（記憶體暫存）</h3>
+        <ul id="leaderboardList" class="leaderboard-list">
+          <!-- createElement 動態注入 -->
+        </ul>
+
+        <button id="btnRestart" type="button" class="btn-action">下一位玩家 / 再玩一次</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+'use strict';
+
+/**
+ * 資安強制規範：XSS 防護字串跳脫函式
+ */
+function escapeHTML(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/[&<>"'/`]/g, function (m) {
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;',
+      '/': '&#x2F;',
+      '`': '&#x60;'
+    };
+    return map[m];
+  });
+}
+
+/**
+ * 原生 Web Audio API 音效合成引擎
+ */
+class SoundEngine {
+  constructor() {
+    this.ctx = null;
+    this.isSupported = typeof (window.AudioContext || window.webkitAudioContext) !== 'undefined';
+  }
+
+  init() {
+    if (!this.ctx && this.isSupported) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioContextClass();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
+  }
+
+  playTone(freq, type = 'sine', duration = 0.1, gainVal = 0.12) {
+    if (!this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + duration);
+    } catch (e) {
+      // 靜默捕捉
+    }
+  }
+
+  playLinkStep(step) {
+    this.init();
+    const base = 350;
+    const freq = base + Math.min(step, 10) * 60;
+    this.playTone(freq, 'triangle', 0.1, 0.14);
+  }
+
+  playPop() {
+    this.init();
+    this.playTone(600, 'sine', 0.08, 0.18);
+  }
+
+  playExplode() {
+    this.init();
+    this.playTone(180, 'square', 0.22, 0.22);
+  }
+
+  playAlarm() {
+    this.init();
+    this.playTone(880, 'sine', 0.06, 0.1);
+  }
+}
+
+/**
+ * 果凍 Canvas 向量幾何繪製器
+ */
+class JellyGraphics {
+  static PALETTES = [
+    { name: '可可果凍', primary: '#6d4c41', accent: '#d7ccc8', stroke: '#3e2723' },
+    { name: '草莓星凍', primary: '#ff6b81', accent: '#ffda79', stroke: '#ee5253' },
+    { name: '抹茶熊凍', primary: '#1dd1a1', accent: '#10ac84', stroke: '#01a3a4' },
+    { name: '香草花凍', primary: '#fed330', accent: '#fffa65', stroke: '#f39c12' },
+    { name: '藍莓心凍', primary: '#a55eea', accent: '#d6a2e8', stroke: '#8854d0' },
+    { name: '蜜桃環凍', primary: '#ff9ff3', accent: '#f368e0', stroke: '#ffffff' },
+    { name: '晶藍菱凍', primary: '#48dbfb', accent: '#0abde3', stroke: '#c8d6e5' }
+  ];
+
+  static renderJelly(ctx, x, y, radius, typeId, isSelected) {
+    const palette = this.PALETTES[typeId % this.PALETTES.length];
+    ctx.save();
+    ctx.translate(x, y);
+
+    // 選取時外圈發光脈衝
+    if (isSelected) {
+      ctx.beginPath();
+      ctx.arc(0, 0, radius + 5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+    }
+
+    switch (typeId) {
+      case 0: // 可可果凍 (圓形光澤)
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fillStyle = palette.primary;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = palette.stroke;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.5, 0, Math.PI * 2);
+        ctx.fillStyle = palette.accent;
+        ctx.fill();
+        break;
+
+      case 1: // 草莓星凍
+        this.drawStar(ctx, 0, 0, 5, radius * 1.08, radius * 0.52, palette.primary, palette.stroke);
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.25, 0, Math.PI * 2);
+        ctx.fillStyle = palette.accent;
+        ctx.fill();
+        break;
+
+      case 2: // 抹茶熊凍
+        ctx.fillStyle = palette.primary;
+        ctx.beginPath();
+        ctx.arc(-radius * 0.58, -radius * 0.58, radius * 0.38, 0, Math.PI * 2);
+        ctx.arc(radius * 0.58, -radius * 0.58, radius * 0.38, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.82, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = palette.stroke;
+        ctx.stroke();
+
+        ctx.fillStyle = palette.stroke;
+        ctx.beginPath();
+        ctx.arc(-radius * 0.28, -radius * 0.1, radius * 0.09, 0, Math.PI * 2);
+        ctx.arc(radius * 0.28, -radius * 0.1, radius * 0.09, 0, Math.PI * 2);
+        ctx.arc(0, radius * 0.18, radius * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+
+      case 3: // 香草花凍
+        ctx.fillStyle = palette.primary;
+        for (let i = 0; i < 5; i++) {
+          const angle = (i * Math.PI * 2) / 5;
+          const px = Math.cos(angle) * (radius * 0.55);
+          const py = Math.sin(angle) * (radius * 0.55);
+          ctx.beginPath();
+          ctx.arc(px, py, radius * 0.42, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = palette.accent;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = palette.stroke;
+        ctx.stroke();
+        break;
+
+      case 4: // 藍莓心凍
+        this.drawHeart(ctx, 0, -radius * 0.1, radius * 0.85, palette.primary, palette.stroke);
+        ctx.beginPath();
+        ctx.arc(-radius * 0.28, -radius * 0.3, radius * 0.16, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.fill();
+        break;
+
+      case 5: // 蜜桃環凍
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.95, 0, Math.PI * 2);
+        ctx.fillStyle = palette.primary;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2);
+        ctx.fillStyle = '#171226';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = palette.stroke;
+        ctx.stroke();
+        break;
+
+      default: // 晶藍菱凍
+        ctx.save();
+        ctx.rotate(Math.PI / 4);
+        ctx.fillStyle = palette.primary;
+        ctx.fillRect(-radius * 0.68, -radius * 0.68, radius * 1.36, radius * 1.36);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = palette.stroke;
+        ctx.strokeRect(-radius * 0.68, -radius * 0.68, radius * 1.36, radius * 1.36);
+        ctx.fillStyle = palette.accent;
+        ctx.fillRect(-radius * 0.32, -radius * 0.32, radius * 0.64, radius * 0.64);
+        ctx.restore();
+        break;
+    }
+
+    ctx.restore();
+  }
+
+  static drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius, fill, stroke) {
+    let rot = (Math.PI / 2) * 3;
+    let x = cx;
+    let y = cy;
+    const step = Math.PI / spikes;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - outerRadius);
+    for (let i = 0; i < spikes; i++) {
+      x = cx + Math.cos(rot) * outerRadius;
+      y = cy + Math.sin(rot) * outerRadius;
+      ctx.lineTo(x, y);
+      rot += step;
+
+      x = cx + Math.cos(rot) * innerRadius;
+      y = cy + Math.sin(rot) * innerRadius;
+      ctx.lineTo(x, y);
+      rot += step;
+    }
+    ctx.lineTo(cx, cy - outerRadius);
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+  }
+
+  static drawHeart(ctx, x, y, size, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + size * 0.3);
+    ctx.bezierCurveTo(x, y, x - size, y, x - size, y + size * 0.5);
+    ctx.bezierCurveTo(x - size, y + size * 0.9, x, y + size * 1.2, x, y + size * 1.4);
+    ctx.bezierCurveTo(x, y + size * 1.2, x + size, y + size * 0.9, x + size, y + size * 0.5);
+    ctx.bezierCurveTo(x + size, y, x, y, x, y + size * 0.3);
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+  }
+}
+
+/**
+ * 遊戲主控制器
+ */
+class JellyLinksGameController {
+  static DIFFICULTY_WEIGHTS = {
+    4: 0.85,
+    5: 1.00,
+    6: 1.25,
+    7: 1.60
+  };
+
+  constructor() {
+    this.GRID_SIZE = 8;
+    this.jellyTypeCount = 5;
+    this.canvas = document.getElementById('gameCanvas');
+    this.ctx = this.canvas.getContext('2d');
+    this.boardContainer = document.getElementById('boardContainer');
+    this.sound = new SoundEngine();
+
+    // HUD 元素
+    this.timerLabel = document.getElementById('timerLabel');
+    this.timerProgress = document.getElementById('timerProgress');
+    this.scoreLabel = document.getElementById('scoreLabel');
+    this.comboMultiplierText = document.getElementById('comboMultiplierText');
+    this.comboBadge = document.getElementById('comboBadge');
+    this.cookieTypesSelect = document.getElementById('cookieTypesSelect');
+    this.btnResetGame = document.getElementById('btnResetGame');
+    this.hudDiffMultiplier = document.getElementById('hudDiffMultiplier');
+
+    // 浮層元素
+    this.startOverlay = document.getElementById('startOverlay');
+    this.readyOverlay = document.getElementById('readyOverlay');
+    this.countdownBanner = document.getElementById('countdownBanner');
+    this.finishOverlay = document.getElementById('finishOverlay');
+    this.rawScoreText = document.getElementById('rawScoreText');
+    this.diffMultiplierText = document.getElementById('diffMultiplierText');
+    this.finalScoreLabel = document.getElementById('finalScoreLabel');
+    this.leaderboardList = document.getElementById('leaderboardList');
+    this.btnStart = document.getElementById('btnStart');
+    this.btnRestart = document.getElementById('btnRestart');
+
+    // 輸入控制項
+    this.playerInputSection = document.getElementById('playerInputSection');
+    this.playerNameInput = document.getElementById('playerNameInput');
+    this.btnSubmitScore = document.getElementById('btnSubmitScore');
+
+    // 狀態機
+    this.state = 'Menu';
+    this.board = [];
+    this.chainList = [];
+    this.currentChainType = -1;
+    this.pointer = { x: 0, y: 0, isDown: false };
+
+    // 數值
+    this.score = 0;
+    this.displayScore = 0;
+    this.finalCalculatedScore = 0;
+    this.gameDuration = 60;
+    this.remainingTime = 60;
+    this.timerInterval = null;
+    this.lastTs = performance.now();
+
+    // 連鎖
+    this.comboCount = 0;
+    this.comboWindow = 0;
+    this.comboMultiplier = 1.0;
+
+    // 特效
+    this.particles = [];
+    this.floatingTexts = [];
+
+    // 記憶體排行榜 (關閉清空)
+    this.leaderboards = [];
+    this.lastSubmittedName = '';
+
+    this.bindEvents();
+    this.resizeCanvas();
+    this.initBoard();
+    this.updateDifficultyHUD();
+
+    requestAnimationFrame((ts) => this.loop(ts));
+  }
+
+  get currentDifficultyWeight() {
+    return JellyLinksGameController.DIFFICULTY_WEIGHTS[this.jellyTypeCount] || 1.0;
+  }
+
+  updateDifficultyHUD() {
+    const weight = this.currentDifficultyWeight;
+    this.hudDiffMultiplier.textContent = `係數 ${weight.toFixed(2)}x`;
+  }
+
+  bindEvents() {
+    this.btnStart.addEventListener('click', () => {
+      this.sound.init();
+      this.startOverlay.classList.add('hidden');
+      this.beginReadyCountdown();
+    });
+
+    this.btnRestart.addEventListener('click', () => {
+      this.finishOverlay.classList.add('hidden');
+      this.beginReadyCountdown();
+    });
+
+    this.btnResetGame.addEventListener('click', () => {
+      if (this.state === 'Ready') return;
+      this.sound.init();
+      if (this.timerInterval) clearInterval(this.timerInterval);
+      this.finishOverlay.classList.add('hidden');
+      this.startOverlay.classList.add('hidden');
+      this.beginReadyCountdown();
+    });
+
+    this.cookieTypesSelect.addEventListener('change', (e) => {
+      const val = parseInt(e.target.value, 10);
+      if (val >= 4 && val <= 7) {
+        this.jellyTypeCount = val;
+        this.updateDifficultyHUD();
+        this.initBoard();
+      }
+    });
+
+    this.btnSubmitScore.addEventListener('click', () => {
+      this.handleSubmitPlayerScore();
+    });
+
+    this.playerNameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        this.handleSubmitPlayerScore();
+      }
+    });
+
+    this.canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+    this.canvas.addEventListener('pointermove', (e) => this.onPointerMove(e));
+    this.canvas.addEventListener('pointerup', (e) => this.onPointerUp(e));
+    this.canvas.addEventListener('pointercancel', (e) => this.onPointerUp(e));
+
+    window.addEventListener('resize', () => {
+      this.resizeCanvas();
+      this.recalculatePositions();
+    });
+  }
+
+  resizeCanvas() {
+    const rect = this.boardContainer.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    this.canvas.width = rect.width * dpr;
+    this.canvas.height = rect.height * dpr;
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    this.width = rect.width;
+    this.height = rect.height;
+
+    const padding = 16;
+    const availableSize = Math.min(this.width, this.height) - padding * 2;
+    this.cellSize = Math.max(20, availableSize / this.GRID_SIZE);
+
+    this.offsetX = (this.width - this.cellSize * this.GRID_SIZE) / 2;
+    this.offsetY = (this.height - this.cellSize * this.GRID_SIZE) / 2;
+    this.jellyRadius = (this.cellSize * 0.76) / 2;
+    this.maxLinkRadius = this.cellSize * 1.5;
+    this.touchHitRadius = this.jellyRadius * 1.3;
+  }
+
+  recalculatePositions() {
+    for (let r = 0; r < this.GRID_SIZE; r++) {
+      if (!this.board[r]) continue;
+      for (let c = 0; c < this.GRID_SIZE; c++) {
+        const item = this.board[r][c];
+        if (item) {
+          item.x = this.offsetX + c * this.cellSize + this.cellSize / 2;
+          item.targetY = this.offsetY + r * this.cellSize + this.cellSize / 2;
+          if (this.state === 'Menu') {
+            item.y = item.targetY;
+          }
+        }
+      }
+    }
+  }
+
+  initBoard() {
+    this.board = [];
+    for (let r = 0; r < this.GRID_SIZE; r++) {
+      this.board[r] = [];
+      for (let c = 0; c < this.GRID_SIZE; c++) {
+        const targetY = this.offsetY + r * this.cellSize + this.cellSize / 2;
+        this.board[r][c] = {
+          typeId: Math.floor(Math.random() * this.jellyTypeCount),
+          x: this.offsetX + c * this.cellSize + this.cellSize / 2,
+          y: targetY,
+          targetY: targetY,
+          vy: 0,
+          r: r,
+          c: c
+        };
+      }
+    }
+  }
+
+  beginReadyCountdown() {
+    this.state = 'Ready';
+    this.resizeCanvas();
+    this.initBoard();
+    this.resetStats();
+
+    this.readyOverlay.classList.remove('hidden');
+    let count = 3;
+    this.countdownBanner.textContent = String(count);
+    this.sound.playTone(440, 'triangle', 0.12);
+
+    const cd = setInterval(() => {
+      count--;
+      if (count > 0) {
+        this.countdownBanner.textContent = String(count);
+        this.sound.playTone(440, 'triangle', 0.12);
+      } else {
+        clearInterval(cd);
+        this.readyOverlay.classList.add('hidden');
+        this.beginInGame();
+      }
+    }, 1000);
+  }
+
+  beginInGame() {
+    this.state = 'InGame';
+    this.remainingTime = this.gameDuration;
+    this.lastTs = performance.now();
+    this.sound.playTone(660, 'sine', 0.2);
+
+    if (this.timerInterval) clearInterval(this.timerInterval);
+    this.timerInterval = setInterval(() => {
+      this.remainingTime--;
+      this.syncTimerUI();
+
+      if (this.remainingTime <= 10 && this.remainingTime > 0) {
+        this.boardContainer.classList.add('warning');
+        this.sound.playAlarm();
+      }
+
+      if (this.remainingTime <= 0) {
+        clearInterval(this.timerInterval);
+        this.handleTimesUp();
+      }
+    }, 1000);
+  }
+
+  handleTimesUp() {
+    this.state = 'TimesUp';
+    this.boardContainer.classList.remove('warning');
+    this.chainList = [];
+
+    const weight = this.currentDifficultyWeight;
+    this.finalCalculatedScore = Math.round(this.score * weight);
+
+    setTimeout(() => {
+      this.state = 'Leaderboard';
+      this.showLeaderboardModal();
+    }, 1200);
+  }
+
+  showLeaderboardModal() {
+    const weight = this.currentDifficultyWeight;
+    this.rawScoreText.textContent = Math.floor(this.score).toLocaleString();
+    this.diffMultiplierText.textContent = `${weight.toFixed(2)}x`;
+    this.finalScoreLabel.textContent = this.finalCalculatedScore.toLocaleString();
+
+    this.playerInputSection.style.display = 'block';
+    this.playerNameInput.disabled = false;
+    this.btnSubmitScore.disabled = false;
+    this.playerNameInput.value = `玩家${this.leaderboards.length + 1}`;
+    this.lastSubmittedName = '';
+
+    this.renderLeaderboardDOM();
+    this.finishOverlay.classList.remove('hidden');
+    setTimeout(() => {
+      this.playerNameInput.focus();
+      this.playerNameInput.select();
+    }, 100);
+  }
+
+  handleSubmitPlayerScore() {
+    if (this.btnSubmitScore.disabled) return;
+
+    let rawName = this.playerNameInput.value.trim();
+    if (!rawName) {
+      rawName = `玩家${this.leaderboards.length + 1}`;
+    }
+    rawName = rawName.slice(0, 12);
+
+    this.lastSubmittedName = rawName;
+
+    this.leaderboards.push({
+      name: rawName,
+      score: this.finalCalculatedScore,
+      colors: this.jellyTypeCount,
+      weight: this.currentDifficultyWeight,
+      timestamp: Date.now()
+    });
+    this.leaderboards.sort((a, b) => b.score - a.score);
+
+    this.playerNameInput.disabled = true;
+    this.btnSubmitScore.disabled = true;
+    this.playerInputSection.style.display = 'none';
+
+    this.sound.playPop();
+    this.renderLeaderboardDOM();
+  }
+
+  renderLeaderboardDOM() {
+    while (this.leaderboardList.firstChild) {
+      this.leaderboardList.removeChild(this.leaderboardList.firstChild);
+    }
+
+    if (this.leaderboards.length === 0) {
+      const emptyLi = document.createElement('li');
+      emptyLi.className = 'leaderboard-item';
+      emptyLi.style.justifyContent = 'center';
+      emptyLi.style.color = '#7d6999';
+      emptyLi.textContent = '尚未有玩家送出成績，快輸入名稱送出吧！';
+      this.leaderboardList.appendChild(emptyLi);
+      return;
+    }
+
+    this.leaderboards.slice(0, 8).forEach((entry, i) => {
+      const li = document.createElement('li');
+      li.className = 'leaderboard-item';
+
+      if (entry.name === this.lastSubmittedName) {
+        li.classList.add('highlight');
+      }
+
+      const leftBox = document.createElement('div');
+      leftBox.style.display = 'flex';
+      leftBox.style.alignItems = 'center';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = `#${i + 1} ${escapeHTML(entry.name)}`;
+
+      const tagSpan = document.createElement('span');
+      tagSpan.className = 'diff-tag';
+      tagSpan.textContent = `${entry.colors}色 (${entry.weight.toFixed(2)}x)`;
+
+      leftBox.appendChild(nameSpan);
+      leftBox.appendChild(tagSpan);
+
+      const scoreSpan = document.createElement('span');
+      scoreSpan.textContent = `${entry.score.toLocaleString()} 分`;
+
+      li.appendChild(leftBox);
+      li.appendChild(scoreSpan);
+      this.leaderboardList.appendChild(li);
+    });
+  }
+
+  resetStats() {
+    this.score = 0;
+    this.displayScore = 0;
+    this.finalCalculatedScore = 0;
+    this.comboCount = 0;
+    this.comboMultiplier = 1.0;
+    this.comboWindow = 0;
+    this.chainList = [];
+    this.particles = [];
+    this.floatingTexts = [];
+    this.updateHUD();
+    this.syncTimerUI();
+  }
+
+  syncTimerUI() {
+    const t = Math.max(0, this.remainingTime);
+    this.timerLabel.textContent = String(t);
+
+    const maxDash = 125.6;
+    const ratio = t / this.gameDuration;
+    const offset = maxDash * (1 - ratio);
+    this.timerProgress.style.strokeDashoffset = String(offset);
+
+    if (t <= 10) {
+      this.timerProgress.style.stroke = '#e74c3c';
+    } else {
+      this.timerProgress.style.stroke = '#2ecc71';
+    }
+  }
+
+  updateHUD() {
+    this.comboMultiplierText.textContent = `${this.comboMultiplier.toFixed(1)}x`;
+    this.comboBadge.textContent = `Combo ${this.comboCount}`;
+    if (this.comboCount > 1) {
+      this.comboBadge.classList.add('active');
+    } else {
+      this.comboBadge.classList.remove('active');
+    }
+  }
+
+  getPointerCoords(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+  }
+
+  getJellyUnderPointer(pos) {
+    for (let r = 0; r < this.GRID_SIZE; r++) {
+      for (let c = 0; c < this.GRID_SIZE; c++) {
+        const item = this.board[r][c];
+        if (!item) continue;
+        const d = Math.hypot(pos.x - item.x, pos.y - item.y);
+        if (d <= this.touchHitRadius) {
+          return item;
+        }
+      }
+    }
+    return null;
+  }
+
+  onPointerDown(e) {
+    if (this.state !== 'InGame') return;
+    this.canvas.setPointerCapture(e.pointerId);
+    const p = this.getPointerCoords(e);
+    this.pointer = { x: p.x, y: p.y, isDown: true };
+
+    const jelly = this.getJellyUnderPointer(p);
+    if (jelly) {
+      this.chainList = [jelly];
+      this.currentChainType = jelly.typeId;
+      this.sound.playLinkStep(1);
+    }
+  }
+
+  onPointerMove(e) {
+    if (this.state !== 'InGame' || !this.pointer.isDown) return;
+    const p = this.getPointerCoords(e);
+    this.pointer.x = p.x;
+    this.pointer.y = p.y;
+
+    if (this.chainList.length === 0) return;
+
+    const target = this.getJellyUnderPointer(p);
+    if (!target) return;
+
+    // 回退判定 (Rollback)
+    if (this.chainList.length >= 2) {
+      const prevNode = this.chainList[this.chainList.length - 2];
+      if (target.r === prevNode.r && target.c === prevNode.c) {
+        this.chainList.pop();
+        this.sound.playLinkStep(this.chainList.length);
+        return;
+      }
+    }
+
+    const lastNode = this.chainList[this.chainList.length - 1];
+    const isSameType = target.typeId === this.currentChainType;
+    const dist = Math.hypot(target.x - lastNode.x, target.y - lastNode.y);
+    const unvisited = !this.chainList.some((n) => n.r === target.r && n.c === target.c);
+
+    if (isSameType && dist <= this.maxLinkRadius && unvisited) {
+      this.chainList.push(target);
+      this.sound.playLinkStep(this.chainList.length);
+    }
+  }
+
+  onPointerUp(e) {
+    if (this.state !== 'InGame' || !this.pointer.isDown) return;
+    this.pointer.isDown = false;
+
+    if (this.chainList.length >= 3) {
+      this.resolveChain(this.chainList);
+    }
+    this.chainList = [];
+    this.currentChainType = -1;
+  }
+
+  resolveChain(chain) {
+    const len = chain.length;
+
+    if (this.comboWindow > 0) {
+      this.comboCount++;
+    } else {
+      this.comboCount = 1;
+    }
+    this.comboWindow = 3.0;
+    this.comboMultiplier = 1.0 + (this.comboCount - 1) * 0.2;
+
+    let baseScoreSum = 0;
+    const stepPoints = [];
+    for (let i = 1; i <= len; i++) {
+      let p = 0;
+      if (i <= 3) p = 100;
+      else if (i === 4) p = 130;
+      else if (i === 5) p = 160;
+      else if (i === 6) p = 190;
+      else p = 220 + 30 * (i - 7);
+      baseScoreSum += p;
+      stepPoints.push(p);
+    }
+
+    const totalGain = Math.round(baseScoreSum * this.comboMultiplier);
+    this.score += totalGain;
+    this.sound.playExplode();
+
+    chain.forEach((item, idx) => {
+      this.spawnParticles(item.x, item.y, item.typeId);
+      this.floatingTexts.push({
+        x: item.x,
+        y: item.y,
+        text: `+${stepPoints[idx]}`,
+        alpha: 1.0,
+        vy: -35
+      });
+      this.board[item.r][item.c] = null;
+    });
+
+    const midItem = chain[Math.floor(len / 2)];
+    this.floatingTexts.push({
+      x: midItem.x,
+      y: midItem.y - 20,
+      text: `Combo x${this.comboMultiplier.toFixed(1)}! +${totalGain}`,
+      alpha: 1.0,
+      vy: -55,
+      isMajor: true
+    });
+
+    this.updateHUD();
+    this.applyGravityFill();
+  }
+
+  applyGravityFill() {
+    for (let c = 0; c < this.GRID_SIZE; c++) {
+      let blanks = 0;
+      for (let r = this.GRID_SIZE - 1; r >= 0; r--) {
+        if (this.board[r][c] === null) {
+          blanks++;
+        } else if (blanks > 0) {
+          const targetRow = r + blanks;
+          this.board[targetRow][c] = this.board[r][c];
+          this.board[targetRow][c].r = targetRow;
+          this.board[targetRow][c].targetY = this.offsetY + targetRow * this.cellSize + this.cellSize / 2;
+          this.board[r][c] = null;
+        }
+      }
+
+      for (let i = 0; i < blanks; i++) {
+        const targetRow = blanks - 1 - i;
+        const initialY = this.offsetY - (i + 1) * this.cellSize;
+        const targetY = this.offsetY + targetRow * this.cellSize + this.cellSize / 2;
+
+        this.board[targetRow][c] = {
+          typeId: Math.floor(Math.random() * this.jellyTypeCount),
+          x: this.offsetX + c * this.cellSize + this.cellSize / 2,
+          y: initialY,
+          targetY: targetY,
+          vy: 0,
+          r: targetRow,
+          c: c
+        };
+      }
+    }
+  }
+
+  spawnParticles(x, y, typeId) {
+    const palette = JellyGraphics.PALETTES[typeId % JellyGraphics.PALETTES.length];
+    for (let i = 0; i < 10; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const spd = 2 + Math.random() * 4;
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd,
+        color: Math.random() > 0.5 ? palette.primary : palette.accent,
+        radius: 3 + Math.random() * 2,
+        alpha: 1.0
+      });
+    }
+  }
+
+  update(dt) {
+    if (this.displayScore < this.score) {
+      const delta = Math.ceil((this.score - this.displayScore) * 0.18);
+      this.displayScore = Math.min(this.score, this.displayScore + delta);
+      this.scoreLabel.textContent = this.displayScore.toLocaleString();
+    }
+
+    if (this.comboWindow > 0) {
+      this.comboWindow -= dt;
+      if (this.comboWindow <= 0) {
+        this.comboWindow = 0;
+        this.comboCount = 0;
+        this.comboMultiplier = 1.0;
+        this.updateHUD();
+      }
+    }
+
+    const gravity = 2200;
+    const bounceDamping = -0.25;
+
+    for (let r = 0; r < this.GRID_SIZE; r++) {
+      for (let c = 0; c < this.GRID_SIZE; c++) {
+        const item = this.board[r][c];
+        if (!item) continue;
+
+        if (item.y < item.targetY) {
+          item.vy += gravity * dt;
+          item.y += item.vy * dt;
+          if (item.y >= item.targetY) {
+            item.y = item.targetY;
+            if (Math.abs(item.vy) > 140) {
+              item.vy *= bounceDamping;
+            } else {
+              item.vy = 0;
+            }
+          }
+        }
+      }
+    }
+
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.25;
+      p.alpha -= dt * 1.5;
+      if (p.alpha <= 0) this.particles.splice(i, 1);
+    }
+
+    for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+      const ft = this.floatingTexts[i];
+      ft.y += ft.vy * dt;
+      ft.alpha -= dt * (ft.isMajor ? 0.9 : 1.3);
+      if (ft.alpha <= 0) this.floatingTexts.splice(i, 1);
+    }
+  }
+
+  draw() {
+    this.ctx.clearRect(0, 0, this.width, this.height);
+
+    for (let r = 0; r < this.GRID_SIZE; r++) {
+      for (let c = 0; c < this.GRID_SIZE; c++) {
+        const x = this.offsetX + c * this.cellSize;
+        const y = this.offsetY + r * this.cellSize;
+        this.ctx.fillStyle = (r + c) % 2 === 0 ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.18)';
+        this.ctx.fillRect(x, y, this.cellSize, this.cellSize);
+      }
+    }
+
+    if (this.chainList.length > 0) {
+      this.ctx.save();
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.chainList[0].x, this.chainList[0].y);
+      for (let i = 1; i < this.chainList.length; i++) {
+        this.ctx.lineTo(this.chainList[i].x, this.chainList[i].y);
+      }
+      if (this.pointer.isDown) {
+        this.ctx.lineTo(this.pointer.x, this.pointer.y);
+      }
+
+      this.ctx.strokeStyle = '#e056fd';
+      this.ctx.lineWidth = 10;
+      this.ctx.lineCap = 'round';
+      this.ctx.lineJoin = 'round';
+      this.ctx.stroke();
+
+      this.ctx.strokeStyle = '#ffffff';
+      this.ctx.lineWidth = 4;
+      this.ctx.stroke();
+      this.ctx.restore();
+    }
+
+    for (let r = 0; r < this.GRID_SIZE; r++) {
+      for (let c = 0; c < this.GRID_SIZE; c++) {
+        const item = this.board[r][c];
+        if (!item) continue;
+        const isSelected = this.chainList.includes(item);
+        JellyGraphics.renderJelly(
+          this.ctx,
+          item.x,
+          item.y,
+          this.jellyRadius,
+          item.typeId,
+          isSelected
+        );
+      }
+    }
+
+    for (const p of this.particles) {
+      this.ctx.save();
+      this.ctx.globalAlpha = Math.max(0, p.alpha);
+      this.ctx.fillStyle = p.color;
+      this.ctx.beginPath();
+      this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.restore();
+    }
+
+    for (const ft of this.floatingTexts) {
+      this.ctx.save();
+      this.ctx.globalAlpha = Math.max(0, ft.alpha);
+      this.ctx.fillStyle = ft.isMajor ? '#f1c40f' : '#ffffff';
+      this.ctx.font = ft.isMajor ? 'bold 18px system-ui' : 'bold 14px system-ui';
+      this.ctx.textAlign = 'center';
+      this.ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      this.ctx.shadowBlur = 4;
+      this.ctx.fillText(ft.text, ft.x, ft.y);
+      this.ctx.restore();
+    }
+  }
+
+  loop(currentTs) {
+    const dt = Math.min((currentTs - this.lastTs) / 1000, 0.1);
+    this.lastTs = currentTs;
+
+    this.update(dt);
+    this.draw();
+
+    requestAnimationFrame((ts) => this.loop(ts));
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  new JellyLinksGameController();
+});
+</script>
+</body>
+</html>
