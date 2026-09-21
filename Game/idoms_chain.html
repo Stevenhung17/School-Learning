@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>成語串聯</title>
+
+  <!-- 資安強制規範：嚴格 Content-Security-Policy 與安全性標頭 -->
+  <meta http-equiv="Content-Security-Policy"
+        content="
+          default-src 'self';
+          script-src 'self' 'unsafe-inline';
+          style-src 'self' 'unsafe-inline';
+          img-src 'self' data: https:;
+          connect-src 'self';
+          font-src 'self';
+          media-src 'self';
+          object-src 'none';
+          base-uri 'self';
+          form-action 'self';
+          frame-ancestors 'none';
+        ">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      font-family: "DFKai-SB", "BiauKai", "Kaiti TC", "KaiTi", serif;
+      background-color: #2b2d42;
+      color: #edf2f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .game-viewport {
+      width: 95vw;
+      height: 53.43vw; /* 16:9 比例 */
+      max-width: 1400px;
+      max-height: 787.5px;
+      background-color: #1a1b26;
+      border: 3px solid #8d99ae;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 頂部資訊列 */
+    header.game-header {
+      height: 54px;
+      background-color: #24283b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 24px;
+      border-bottom: 2px solid #414868;
+    }
+
+    .header-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #e0af68;
+      letter-spacing: 2px;
+    }
+
+    .stats-bar {
+      display: flex;
+      gap: 20px;
+      font-size: 1.15rem;
+    }
+
+    .stat-badge {
+      background-color: #16161e;
+      padding: 4px 14px;
+      border-radius: 20px;
+      border: 1px solid #565f89;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .timer-alert {
+      color: #f7768e;
+      border-color: #f7768e;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* 主遊玩雙欄佈局：左側資訊，右側棋盤 */
+    main.game-content {
+      flex: 1;
+      display: flex;
+      padding: 16px;
+      gap: 16px;
+      height: calc(100% - 54px);
+      position: relative;
+    }
+
+    /* 左側解析與即時列表 */
+    .left-panel {
+      flex: 0 0 35%;
+      background-color: #24283b;
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #414868;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: #7aa2f7;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed #565f89;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .combo-indicator {
+      font-size: 0.95rem;
+      color: #ff9e64;
+      font-weight: bold;
+    }
+
+    .solved-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-right: 4px;
+    }
+
+    .solved-card {
+      background-color: #1f2335;
+      padding: 10px;
+      border-radius: 6px;
+      border-left: 4px solid #9ece6a;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    .solved-title {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: #9ece6a;
+    }
+
+    .solved-bopomofo {
+      font-size: 0.95rem;
+      color: #bb9af7;
+      margin: 3px 0;
+    }
+
+    .solved-meaning {
+      font-size: 0.9rem;
+      color: #c0caf5;
+      line-height: 1.4;
+      text-align: justify;
+    }
+
+    /* 右側漢字消除棋盤 */
+    .right-panel {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #16161e;
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid #414868;
+    }
+
+    .grid-board {
+      display: grid;
+      gap: 8px;
+      width: 100%;
+      height: 100%;
+      max-width: 680px;
+      max-height: 680px;
+      justify-content: center;
+      align-content: center;
+    }
+
+    /* 棋盤格子按鈕樣式 */
+    .grid-cell {
+      background-color: #292e42;
+      color: #c0caf5;
+      border: 2px solid #565f89;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 1.8rem;
+      font-weight: bold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 3px 0 #1a1b26;
+      transition: background-color 0.15s, transform 0.1s, border-color 0.15s;
+    }
+
+    .grid-cell:hover:not(:disabled) {
+      background-color: #3b4261;
+      border-color: #7aa2f7;
+    }
+
+    .grid-cell:active:not(:disabled) {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #1a1b26;
+    }
+
+    /* 選取中狀態 */
+    .grid-cell.selected {
+      background-color: #e0af68;
+      color: #1a1b26;
+      border-color: #ff9e64;
+    }
+
+    /* 答對消除：保持空間佔位不移位 */
+    .grid-cell.eliminated {
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* 浮層 Modal 樣式（包含全螢幕阻擋遮罩） */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(15, 15, 23, 0.94);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .modal-card {
+      background-color: #24283b;
+      border: 2px solid #7aa2f7;
+      border-radius: 12px;
+      width: 780px;
+      max-width: 90%;
+      height: 520px;
+      max-height: 90%;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    }
+
+    .modal-header {
+      font-size: 1.6rem;
+      color: #e0af68;
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 12px;
+      letter-spacing: 2px;
+    }
+
+    .modal-scores {
+      display: flex;
+      justify-content: space-around;
+      background-color: #16161e;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 14px;
+      font-size: 1.1rem;
+    }
+
+    .review-container {
+      flex: 1;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding-right: 4px;
+    }
+
+    .review-item {
+      background-color: #1f2335;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #414868;
+    }
+
+    .review-idiom {
+      font-size: 1.15rem;
+      font-weight: bold;
+      color: #7dcfff;
+    }
+
+    .review-bopomofo {
+      font-size: 0.85rem;
+      color: #bb9af7;
+      margin: 2px 0;
+    }
+
+    .review-meaning {
+      font-size: 0.85rem;
+      color: #a9b1d6;
+      line-height: 1.35;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 10px;
+      border-top: 1px solid #414868;
+    }
+
+    .btn {
+      font-family: inherit;
+      padding: 8px 18px;
+      font-size: 1rem;
+      font-weight: bold;
+      color: #fff;
+      background-color: #7aa2f7;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+
+    .btn:hover:not(:disabled) {
+      background-color: #89b4fa;
+    }
+
+    .btn:disabled {
+      background-color: #565f89;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .btn-success {
+      background-color: #9ece6a;
+      color: #1a1b26;
+    }
+    .btn-success:hover:not(:disabled) {
+      background-color: #b9f27c;
+    }
+
+    /* 錯誤警示卡片與載入畫面 */
+    .system-dialog {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .system-msg-title {
+      font-size: 1.4rem;
+      color: #f7768e;
+      font-weight: bold;
+    }
+
+    .system-msg-desc {
+      font-size: 1rem;
+      color: #c0caf5;
+      max-width: 580px;
+      line-height: 1.6;
+    }
+
+    .code-snippet {
+      background-color: #16161e;
+      padding: 6px 12px;
+      border-radius: 4px;
+      color: #e0af68;
+      font-family: monospace;
+    }
+
+    /* 玩家輸入暱稱與排行榜容器 */
+    .endgame-box {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .input-name {
+      font-family: inherit;
+      padding: 8px 12px;
+      font-size: 1.1rem;
+      border-radius: 6px;
+      border: 2px solid #565f89;
+      background-color: #16161e;
+      color: #c0caf5;
+      outline: none;
+    }
+
+    .input-name:focus {
+      border-color: #7aa2f7;
+    }
+
+    .leaderboard-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 1rem;
+    }
+
+    .leaderboard-table th, .leaderboard-table td {
+      border: 1px solid #414868;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .leaderboard-table th {
+      background-color: #16161e;
+      color: #e0af68;
+    }
+
+    /* 原生彩帶 Canvas */
+    #confettiCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 200;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="game-viewport">
+    
+    <!-- 頂端即時狀態列 -->
+    <header class="game-header">
+      <div class="header-title">成語串聯</div>
+      <div class="stats-bar">
+        <div class="stat-badge"><span id="levelDisplay">關卡: 載入中...</span></div>
+        <div class="stat-badge" id="timerBadge"><span>倒數: </span><span id="timeDisplay">0</span><span> 秒</span></div>
+        <div class="stat-badge"><span>累積分數: </span><span id="scoreDisplay">0</span></div>
+      </div>
+    </header>
+
+    <!-- 遊戲主體內容 -->
+    <main class="game-content">
+      <section class="left-panel">
+        <div class="panel-header">
+          <span>已解開成語釋義</span>
+          <span class="combo-indicator" id="comboDisplay">連擊: 0</span>
+        </div>
+        <div class="solved-list" id="solvedList"></div>
+      </section>
+
+      <section class="right-panel">
+        <div class="grid-board" id="gridBoard"></div>
+      </section>
+    </main>
+
+    <!-- 彈出式通用視窗 -->
+    <div class="modal-overlay" id="modalOverlay" style="display: none;">
+      <div class="modal-card">
+        <h2 class="modal-header" id="modalTitle">載入中</h2>
+        <div class="modal-scores" id="modalScores" style="display: none;">
+          <div>本關得分: <span id="modalLevelScore">0</span></div>
+          <div>累計總分: <span id="modalTotalScore">0</span></div>
+        </div>
+
+        <div class="review-container" id="reviewContainer"></div>
+
+        <div class="modal-footer" id="modalFooter">
+          <button type="button" class="btn" id="prevPageBtn">上一頁</button>
+          <span id="pageIndicator" style="font-size: 0.95rem; color: #a9b1d6;">第 1 頁</span>
+          <button type="button" class="btn btn-success" id="nextActionBtn">下一頁</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 原生全破彩帶粒子畫布 -->
+    <canvas id="confettiCanvas"></canvas>
+  </div>
+
+  <script>
+    'use strict';
+
+    /**
+     * XSS 防護跳脫函式
+     */
+    function escapeHTML(str) {
+      if (typeof str !== 'string') return '';
+      return str.replace(/[&<>"'/`]/g, (match) => {
+        const escapeMap = {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#x27;',
+          '/': '&#x2F;',
+          '`': '&#x60;'
+        };
+        return escapeMap[match];
+      });
+    }
+
+    const LEVELS = [
+      { id: 1, name: '第一關 (4×4)', rows: 4, cols: 4, idiomCount: 4, timeLimit: 60 },
+      { id: 2, name: '第二關 (4×6)', rows: 4, cols: 6, idiomCount: 6, timeLimit: 90 },
+      { id: 3, name: '第三關 (6×8)', rows: 6, cols: 8, idiomCount: 12, timeLimit: 120 },
+      { id: 4, name: '第四關 (8×8)', rows: 8, cols: 8, idiomCount: 16, timeLimit: 180 }
+    ];
+
+    const gameState = {
+      allIdioms: [],
+      usedIdioms: new Set(),
+      currentLevelIndex: 0,
+      totalScore: 0,
+      currentLevelScore: 0,
+      combo: 0,
+      timerSeconds: 0,
+      timerId: null,
+      currentLevelIdioms: [],
+      solvedIdioms: [],
+      selectedCells: [],
+      isGameOver: false,
+      isLevelEnded: false,
+      reviewPages: [],
+      currentReviewPage: 0,
+      sessionLeaderboard: []
+    };
+
+    const SoundManager = {
+      correct: new Audio('Sounds/correct.mp3'),
+      wrong: new Audio('Sounds/wrong.mp3'),
+      win: new Audio('Sounds/win.mp3'),
+      play(name) {
+        try {
+          if (this[name]) {
+            this[name].currentTime = 0;
+            this[name].play().catch(() => {});
+          }
+        } catch {}
+      }
+    };
+
+    const ConfettiEngine = {
+      canvas: document.getElementById('confettiCanvas'),
+      ctx: null,
+      particles: [],
+      animationId: null,
+      isActive: false,
+
+      init() {
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+      },
+
+      resize() {
+        this.canvas.width = this.canvas.parentElement.clientWidth;
+        this.canvas.height = this.canvas.parentElement.clientHeight;
+      },
+
+      start() {
+        this.isActive = true;
+        this.particles = [];
+        const colors = ['#f7768e', '#7aa2f7', '#9ece6a', '#e0af68', '#bb9af7', '#7dcfff'];
+        for (let i = 0; i < 150; i++) {
+          this.particles.push({
+            x: Math.random() * this.canvas.width,
+            y: Math.random() * this.canvas.height - this.canvas.height,
+            size: Math.random() * 8 + 4,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            vx: Math.random() * 4 - 2,
+            vy: Math.random() * 5 + 3,
+            rot: Math.random() * 360,
+            rotSpeed: Math.random() * 6 - 3
+          });
+        }
+        this.render();
+      },
+
+      render() {
+        if (!ConfettiEngine.isActive) return;
+        const ctx = ConfettiEngine.ctx;
+        ctx.clearRect(0, 0, ConfettiEngine.canvas.width, ConfettiEngine.canvas.height);
+
+        ConfettiEngine.particles.forEach((p) => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rot += p.rotSpeed;
+
+          if (p.y > ConfettiEngine.canvas.height) {
+            p.y = -10;
+            p.x = Math.random() * ConfettiEngine.canvas.width;
+          }
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rot * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+          ctx.restore();
+        });
+
+        ConfettiEngine.animationId = requestAnimationFrame(ConfettiEngine.render);
+      },
+
+      stop() {
+        this.isActive = false;
+        if (this.animationId) cancelAnimationFrame(this.animationId);
+        if (this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      }
+    };
+
+    /**
+     * CSV 資料解析器
+     */
+    function parseCSV(text) {
+      const lines = text.trim().split(/\r?\n/);
+      if (lines.length < 2) return [];
+
+      const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
+      const colIdiom = headers.indexOf('成語');
+      const colPhonetic = headers.indexOf('注音');
+      const colMeaning = headers.indexOf('用法說明-語義說明');
+      const colType = headers.indexOf('主條成語／非主條成語');
+
+      const idioms = [];
+      for (let i = 1; i < lines.length; i++) {
+        const row = [];
+        let inQuotes = false;
+        let token = '';
+        const line = lines[i];
+
+        for (let charIdx = 0; charIdx < line.length; charIdx++) {
+          const char = line[charIdx];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            row.push(token.trim().replace(/^"|"$/g, ''));
+            token = '';
+          } else {
+            token += char;
+          }
+        }
+        row.push(token.trim().replace(/^"|"$/g, ''));
+
+        const idiom = row[colIdiom];
+        const isMain = colType !== -1 ? row[colType] === '主條成語' : true;
+
+        if (idiom && idiom.length === 4 && isMain) {
+          idioms.push({
+            idiom,
+            phonetic: row[colPhonetic] || '',
+            meaning: row[colMeaning] || '暫無說明'
+          });
+        }
+      }
+      return idioms;
+    }
+
+    function shuffleArray(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    /**
+     * 題庫載入 (增加完整安全防呆與錯誤攔截)
+     */
+    async function initGameData() {
+      const levelDisplay = document.getElementById('levelDisplay');
+      levelDisplay.textContent = '關卡: 載入題庫中...';
+
+      // 檢查是否以 file:// 協議直接開啟
+      if (window.location.protocol === 'file:') {
+        showErrorModal(
+          '本機直接開啟受限提示',
+          '檢測到您是透過檔案總管直接開啟（file:// 協議）。現代瀏覽器基於資安政策，會禁止直接讀取本機 CSV 檔案。',
+          '請將本專案部署至 GitHub Pages，或使用 VS Code Live Server 預覽，即可順利讀取！'
+        );
+        return;
+      }
+
+      try {
+        const res = await fetch('CSV/dict_idioms_2020_20260625_UTF8.csv', {
+          credentials: 'same-origin'
+        });
+
+        if (!res.ok) {
+          throw new Error('無法讀取檔案');
+        }
+
+        const csvText = await res.text();
+        gameState.allIdioms = parseCSV(csvText);
+
+        if (gameState.allIdioms.length < 50) {
+          throw new Error('題庫資料不足或格式不正確');
+        }
+
+        // 題庫正常載入，隱藏任何彈窗並開始遊戲
+        hideModal();
+        startNewRun();
+      } catch (err) {
+        showErrorModal(
+          '題庫載入失敗',
+          '系統無法讀取到 CSV 子資料夾中的題庫檔：dict_idioms_2020_20260625_UTF8.csv。',
+          '請確認 CSV 檔案名稱、大小寫及資料夾路徑「CSV/」是否正確放置。'
+        );
+      }
+    }
+
+    /**
+     * 顯示系統錯誤訊息視窗（防止進入錯誤的結算狀態）
+     */
+    function showErrorModal(title, message, instruction) {
+      const modalOverlay = document.getElementById('modalOverlay');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalScores = document.getElementById('modalScores');
+      const reviewContainer = document.getElementById('reviewContainer');
+      const modalFooter = document.getElementById('modalFooter');
+
+      modalTitle.textContent = escapeHTML(title);
+      modalScores.style.display = 'none';
+      reviewContainer.textContent = '';
+      modalFooter.style.display = 'none';
+
+      const dialog = document.createElement('div');
+      dialog.className = 'system-dialog';
+
+      const desc = document.createElement('div');
+      desc.className = 'system-msg-desc';
+      desc.textContent = escapeHTML(message);
+
+      const tip = document.createElement('div');
+      tip.className = 'system-msg-desc';
+      tip.style.color = '#e0af68';
+      tip.textContent = escapeHTML(instruction);
+
+      const retryBtn = document.createElement('button');
+      retryBtn.type = 'button';
+      retryBtn.className = 'btn btn-success';
+      retryBtn.textContent = '重新整理載入';
+      retryBtn.addEventListener('click', () => {
+        window.location.reload();
+      });
+
+      dialog.appendChild(desc);
+      dialog.appendChild(tip);
+      dialog.appendChild(retryBtn);
+      reviewContainer.appendChild(dialog);
+
+      modalOverlay.style.display = 'flex';
+    }
+
+    function hideModal() {
+      document.getElementById('modalOverlay').style.display = 'none';
+    }
+
+    function startNewRun() {
+      gameState.usedIdioms.clear();
+      gameState.currentLevelIndex = 0;
+      gameState.totalScore = 0;
+      gameState.isGameOver = false;
+      ConfettiEngine.stop();
+      startLevel(gameState.currentLevelIndex);
+    }
+
+    function startLevel(levelIndex) {
+      if (levelIndex >= LEVELS.length) {
+        handleGameVictory();
+        return;
+      }
+
+      const levelConfig = LEVELS[levelIndex];
+      gameState.currentLevelIndex = levelIndex;
+      gameState.currentLevelScore = 0;
+      gameState.combo = 0;
+      gameState.isLevelEnded = false;
+      gameState.solvedIdioms = [];
+      gameState.selectedCells = [];
+      gameState.timerSeconds = levelConfig.timeLimit;
+
+      document.getElementById('levelDisplay').textContent = levelConfig.name;
+      document.getElementById('scoreDisplay').textContent = gameState.totalScore.toString();
+      document.getElementById('comboDisplay').textContent = '連擊: 0';
+      document.getElementById('solvedList').textContent = '';
+      hideModal();
+
+      // 抽選成語
+      gameState.currentLevelIdioms = pickIdiomsForLevel(levelConfig.idiomCount);
+
+      // 防呆：若抽取為空則不繼續執行
+      if (gameState.currentLevelIdioms.length === 0) return;
+
+      const chars = [];
+      gameState.currentLevelIdioms.forEach((item) => {
+        for (const char of item.idiom) {
+          chars.push(char);
+        }
+      });
+      const shuffledChars = shuffleArray(chars);
+
+      renderBoard(shuffledChars, levelConfig.rows, levelConfig.cols);
+      startTimer();
+    }
+
+    function pickIdiomsForLevel(count) {
+      const candidates = gameState.allIdioms.filter(item => !gameState.usedIdioms.has(item.idiom));
+      const pool = candidates.length >= count ? candidates : gameState.allIdioms;
+      const shuffled = shuffleArray(pool);
+      const selected = shuffled.slice(0, count);
+
+      selected.forEach(item => gameState.usedIdioms.add(item.idiom));
+      return selected;
+    }
+
+    function startTimer() {
+      if (gameState.timerId) clearInterval(gameState.timerId);
+
+      const timeDisplay = document.getElementById('timeDisplay');
+      const timerBadge = document.getElementById('timerBadge');
+      timeDisplay.textContent = gameState.timerSeconds.toString();
+      timerBadge.classList.remove('timer-alert');
+
+      gameState.timerId = setInterval(() => {
+        gameState.timerSeconds--;
+        timeDisplay.textContent = gameState.timerSeconds.toString();
+
+        if (gameState.timerSeconds <= 10) {
+          timerBadge.classList.add('timer-alert');
+        }
+
+        if (gameState.timerSeconds <= 0) {
+          clearInterval(gameState.timerId);
+          handleTimeUp();
+        }
+      }, 1000);
+    }
+
+    function renderBoard(chars, rows, cols) {
+      const gridBoard = document.getElementById('gridBoard');
+      gridBoard.textContent = '';
+      gridBoard.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      gridBoard.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+      chars.forEach((char, index) => {
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'grid-cell';
+        cell.textContent = escapeHTML(char);
+        cell.setAttribute('aria-label', `漢字: ${char}`);
+
+        cell.addEventListener('click', () => handleCellClick(cell, char, index));
+        gridBoard.appendChild(cell);
+      });
+    }
+
+    function handleCellClick(cellElement, char, index) {
+      if (gameState.isLevelEnded || cellElement.classList.contains('eliminated')) return;
+
+      const alreadySelected = gameState.selectedCells.some(item => item.index === index);
+      if (alreadySelected) return;
+
+      const testSequence = gameState.selectedCells.map(c => c.char).concat([char]).join('');
+
+      const remainingIdioms = gameState.currentLevelIdioms.filter(
+        item => !gameState.solvedIdioms.some(solved => solved.idiom === item.idiom)
+      );
+
+      const matchedCandidates = remainingIdioms.filter(item => item.idiom.startsWith(testSequence));
+
+      if (matchedCandidates.length > 0) {
+        cellElement.classList.add('selected');
+        gameState.selectedCells.push({ cellElement, char, index });
+
+        if (gameState.selectedCells.length === 4) {
+          handleIdiomSuccess(matchedCandidates[0]);
+        }
+      } else {
+        SoundManager.play('wrong');
+        gameState.combo = 0;
+        document.getElementById('comboDisplay').textContent = '連擊: 0';
+
+        gameState.selectedCells.forEach(item => {
+          item.cellElement.classList.remove('selected');
+        });
+        gameState.selectedCells = [];
+      }
+    }
+
+    function handleIdiomSuccess(matchedIdiom) {
+      SoundManager.play('correct');
+
+      const comboBonus = gameState.combo * 5;
+      const stepScore = 5 + comboBonus;
+      gameState.currentLevelScore += stepScore;
+      gameState.totalScore += stepScore;
+      gameState.combo++;
+
+      document.getElementById('scoreDisplay').textContent = gameState.totalScore.toString();
+      document.getElementById('comboDisplay').textContent = `連擊: ${gameState.combo}`;
+
+      gameState.selectedCells.forEach(item => {
+        item.cellElement.classList.remove('selected');
+        item.cellElement.classList.add('eliminated');
+      });
+      gameState.selectedCells = [];
+
+      gameState.solvedIdioms.push(matchedIdiom);
+      addSolvedCardToLeftPanel(matchedIdiom);
+
+      if (gameState.solvedIdioms.length === gameState.currentLevelIdioms.length) {
+        handleLevelComplete();
+      }
+    }
+
+    function addSolvedCardToLeftPanel(item) {
+      const solvedList = document.getElementById('solvedList');
+      const card = document.createElement('div');
+      card.className = 'solved-card';
+
+      const title = document.createElement('div');
+      title.className = 'solved-title';
+      title.textContent = escapeHTML(item.idiom);
+
+      const phonetic = document.createElement('div');
+      phonetic.className = 'solved-bopomofo';
+      phonetic.textContent = escapeHTML(item.phonetic);
+
+      const meaning = document.createElement('div');
+      meaning.className = 'solved-meaning';
+      meaning.textContent = escapeHTML(item.meaning);
+
+      card.appendChild(title);
+      card.appendChild(phonetic);
+      card.appendChild(meaning);
+      solvedList.prepend(card);
+    }
+
+    function handleLevelComplete() {
+      gameState.isLevelEnded = true;
+      if (gameState.timerId) clearInterval(gameState.timerId);
+
+      const timeBonus = Math.max(0, gameState.timerSeconds) * 5;
+      gameState.currentLevelScore += timeBonus;
+      gameState.totalScore += timeBonus;
+      document.getElementById('scoreDisplay').textContent = gameState.totalScore.toString();
+
+      const isFinalLevel = gameState.currentLevelIndex === LEVELS.length - 1;
+
+      if (isFinalLevel) {
+        SoundManager.play('win');
+        ConfettiEngine.start();
+        showSettlementModal('恭喜全數通關！', true, false);
+      } else {
+        SoundManager.play('win');
+        showSettlementModal('關卡完成！', false, false);
+      }
+    }
+
+    function handleTimeUp() {
+      gameState.isLevelEnded = true;
+      showSettlementModal('時間到！挑戰失敗', false, true);
+    }
+
+    function showSettlementModal(title, isAllClear, isFailed) {
+      const modalOverlay = document.getElementById('modalOverlay');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalScores = document.getElementById('modalScores');
+      const modalLevelScore = document.getElementById('modalLevelScore');
+      const modalTotalScore = document.getElementById('modalTotalScore');
+      const modalFooter = document.getElementById('modalFooter');
+
+      modalTitle.textContent = escapeHTML(title);
+      modalLevelScore.textContent = gameState.currentLevelScore.toString();
+      modalTotalScore.textContent = gameState.totalScore.toString();
+
+      modalScores.style.display = 'flex';
+      modalFooter.style.display = 'flex';
+
+      const allLevelIdioms = gameState.currentLevelIdioms;
+      gameState.reviewPages = [];
+      for (let i = 0; i < allLevelIdioms.length; i += 4) {
+        gameState.reviewPages.push(allLevelIdioms.slice(i, i + 4));
+      }
+
+      gameState.currentReviewPage = 0;
+      gameState.isGameOver = isAllClear || isFailed;
+
+      modalOverlay.style.display = 'flex';
+      renderReviewPage();
+    }
+
+    function renderReviewPage() {
+      const reviewContainer = document.getElementById('reviewContainer');
+      const pageIndicator = document.getElementById('pageIndicator');
+      const prevPageBtn = document.getElementById('prevPageBtn');
+      const nextActionBtn = document.getElementById('nextActionBtn');
+
+      reviewContainer.textContent = '';
+      const totalPages = Math.max(1, gameState.reviewPages.length);
+      const isLastReviewPage = gameState.currentReviewPage === totalPages - 1;
+
+      prevPageBtn.disabled = (gameState.currentReviewPage === 0);
+
+      if (gameState.currentReviewPage < totalPages) {
+        const pageItems = gameState.reviewPages[gameState.currentReviewPage] || [];
+        pageIndicator.textContent = `第 ${gameState.currentReviewPage + 1} 頁 / 共 ${totalPages} 頁`;
+
+        pageItems.forEach(item => {
+          const itemDiv = document.createElement('div');
+          itemDiv.className = 'review-item';
+
+          const idiomDiv = document.createElement('div');
+          idiomDiv.className = 'review-idiom';
+          idiomDiv.textContent = escapeHTML(item.idiom);
+
+          const phoneticDiv = document.createElement('div');
+          phoneticDiv.className = 'review-bopomofo';
+          phoneticDiv.textContent = escapeHTML(item.phonetic);
+
+          const meaningDiv = document.createElement('div');
+          meaningDiv.className = 'review-meaning';
+          meaningDiv.textContent = escapeHTML(item.meaning);
+
+          itemDiv.appendChild(idiomDiv);
+          itemDiv.appendChild(phoneticDiv);
+          itemDiv.appendChild(meaningDiv);
+          reviewContainer.appendChild(itemDiv);
+        });
+
+        if (!isLastReviewPage) {
+          nextActionBtn.textContent = '下一頁';
+          nextActionBtn.className = 'btn';
+        } else {
+          if (gameState.isGameOver) {
+            nextActionBtn.textContent = '輸入名字結算';
+            nextActionBtn.className = 'btn btn-success';
+          } else {
+            nextActionBtn.textContent = '進入下一關';
+            nextActionBtn.className = 'btn btn-success';
+          }
+        }
+      } else {
+        renderLeaderboardView();
+      }
+    }
+
+    function renderLeaderboardView() {
+      const reviewContainer = document.getElementById('reviewContainer');
+      const pageIndicator = document.getElementById('pageIndicator');
+      const prevPageBtn = document.getElementById('prevPageBtn');
+      const nextActionBtn = document.getElementById('nextActionBtn');
+
+      reviewContainer.textContent = '';
+      pageIndicator.textContent = '英雄榜 (暫存記憶體)';
+      prevPageBtn.disabled = false;
+      nextActionBtn.textContent = '重新開始遊戲';
+      nextActionBtn.className = 'btn btn-success';
+
+      const endgameBox = document.createElement('div');
+      endgameBox.className = 'endgame-box';
+
+      const inputGroup = document.createElement('div');
+      inputGroup.className = 'input-group';
+
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.maxLength = 12;
+      nameInput.placeholder = '請輸入大名 (12字內)';
+      nameInput.className = 'input-name';
+
+      const submitBtn = document.createElement('button');
+      submitBtn.type = 'button';
+      submitBtn.className = 'btn';
+      submitBtn.textContent = '登記成績';
+
+      inputGroup.appendChild(nameInput);
+      inputGroup.appendChild(submitBtn);
+      endgameBox.appendChild(inputGroup);
+
+      const tableWrapper = document.createElement('div');
+      tableWrapper.style.width = '100%';
+      tableWrapper.style.maxHeight = '200px';
+      tableWrapper.style.overflowY = 'auto';
+
+      const table = document.createElement('table');
+      table.className = 'leaderboard-table';
+
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      ['名次', '玩家名稱', '獲得總分', '遊玩時間'].forEach(txt => {
+        const th = document.createElement('th');
+        th.textContent = escapeHTML(txt);
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      endgameBox.appendChild(tableWrapper);
+      reviewContainer.appendChild(endgameBox);
+
+      const updateTableRows = () => {
+        tbody.textContent = '';
+        gameState.sessionLeaderboard.sort((a, b) => b.score - a.score);
+
+        gameState.sessionLeaderboard.forEach((record, index) => {
+          const row = document.createElement('tr');
+          const tdRank = document.createElement('td');
+          tdRank.textContent = escapeHTML((index + 1).toString());
+
+          const tdName = document.createElement('td');
+          tdName.textContent = escapeHTML(record.name);
+
+          const tdScore = document.createElement('td');
+          tdScore.textContent = escapeHTML(record.score.toString());
+
+          const tdDate = document.createElement('td');
+          tdDate.textContent = escapeHTML(record.time);
+
+          row.appendChild(tdRank);
+          row.appendChild(tdName);
+          row.appendChild(tdScore);
+          row.appendChild(tdDate);
+          tbody.appendChild(row);
+        });
+      };
+
+      updateTableRows();
+
+      submitBtn.addEventListener('click', () => {
+        const nameVal = nameInput.value.trim() || '無名英雄';
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+        gameState.sessionLeaderboard.push({
+          name: nameVal,
+          score: gameState.totalScore,
+          time: timeStr
+        });
+
+        inputGroup.remove();
+        updateTableRows();
+      });
+    }
+
+    document.getElementById('prevPageBtn').addEventListener('click', () => {
+      if (gameState.currentReviewPage > 0) {
+        gameState.currentReviewPage--;
+        renderReviewPage();
+      }
+    });
+
+    document.getElementById('nextActionBtn').addEventListener('click', () => {
+      const totalPages = Math.max(1, gameState.reviewPages.length);
+
+      if (gameState.currentReviewPage < totalPages - 1) {
+        gameState.currentReviewPage++;
+        renderReviewPage();
+      } else if (gameState.currentReviewPage === totalPages - 1) {
+        if (gameState.isGameOver) {
+          gameState.currentReviewPage++;
+          renderReviewPage();
+        } else {
+          hideModal();
+          startLevel(gameState.currentLevelIndex + 1);
+        }
+      } else {
+        hideModal();
+        startNewRun();
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      ConfettiEngine.init();
+      initGameData();
+    });
+  </script>
+</body>
+</html>
