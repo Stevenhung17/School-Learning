@@ -33,7 +33,7 @@
       -webkit-user-select: none;
     }
 
-    /* 全站字型設定為微軟正黑體，基礎字級放大並自適應 */
+    /* 全站微軟正黑體設定與自適應字級 */
     body {
       font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
       background-color: #2b2d42;
@@ -49,7 +49,7 @@
     /* 16:9 主容器約束 */
     .game-viewport {
       width: 95vw;
-      height: 53.43vw; /* 95 * 9 / 16 */
+      height: 53.43vw; /* 16:9 比例 */
       max-width: 1400px;
       max-height: 787.5px;
       background-color: #1a1b26;
@@ -62,19 +62,19 @@
       overflow: hidden;
     }
 
-    /* 頂部資訊列 (字體放大兩級) */
+    /* 頂部資訊列 */
     header.game-header {
       height: 56px;
       background-color: #24283b;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0 24px;
+      padding: 0 20px;
       border-bottom: 2px solid #414868;
     }
 
     .header-title {
-      font-size: clamp(1.6rem, 2.2vw, 2.1rem);
+      font-size: clamp(1.5rem, 2.0vw, 2.0rem);
       font-weight: bold;
       color: #e0af68;
       letter-spacing: 2px;
@@ -82,13 +82,14 @@
 
     .stats-bar {
       display: flex;
-      gap: 16px;
-      font-size: clamp(1.15rem, 1.4vw, 1.4rem);
+      gap: 12px;
+      align-items: center;
+      font-size: clamp(1.05rem, 1.25vw, 1.3rem);
     }
 
     .stat-badge {
       background-color: #16161e;
-      padding: 5px 14px;
+      padding: 5px 12px;
       border-radius: 20px;
       border: 1px solid #565f89;
       display: flex;
@@ -105,6 +106,35 @@
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
+    }
+
+    /* 求救按鈕樣式 */
+    .hint-btn {
+      background-color: #bb9af7;
+      color: #1a1b26;
+      border: 1px solid #c0caf5;
+      font-family: inherit;
+      font-weight: bold;
+      padding: 5px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    .hint-btn:hover:not(:disabled) {
+      background-color: #d0bcf9;
+      transform: scale(1.04);
+    }
+
+    .hint-btn:disabled {
+      background-color: #565f89;
+      color: #a9b1d6;
+      cursor: not-allowed;
+      opacity: 0.6;
+      transform: none;
     }
 
     /* 主遊玩雙欄佈局：左側資訊，右側棋盤 */
@@ -220,7 +250,7 @@
       align-items: center;
       cursor: pointer;
       box-shadow: 0 3px 0 #1a1b26;
-      transition: background-color 0.15s, transform 0.1s, border-color 0.15s;
+      transition: background-color 0.2s, transform 0.1s, border-color 0.2s, box-shadow 0.2s;
     }
 
     .grid-cell:hover:not(:disabled) {
@@ -238,6 +268,20 @@
       background-color: #e0af68;
       color: #1a1b26;
       border-color: #ff9e64;
+    }
+
+    /* 求救提示變色 (紫色呼吸光暈，涵蓋 1 正確 + 2 干擾) */
+    .grid-cell.hinted {
+      background-color: #792e9e !important;
+      color: #ffffff !important;
+      border-color: #bb9af7 !important;
+      box-shadow: 0 0 12px #bb9af7, 0 3px 0 #1a1b26 !important;
+      animation: hintGlow 0.8s infinite alternate;
+    }
+
+    @keyframes hintGlow {
+      from { transform: scale(1.0); }
+      to { transform: scale(1.06); }
     }
 
     /* 答對消除：保持空間佔位不移位 */
@@ -367,7 +411,7 @@
       background-color: #b9f27c;
     }
 
-    /* 錯誤警示卡片與載入畫面 */
+    /* 錯誤警示對話框樣式 */
     .system-dialog {
       flex: 1;
       display: flex;
@@ -377,12 +421,6 @@
       gap: 16px;
       text-align: center;
       padding: 20px;
-    }
-
-    .system-msg-title {
-      font-size: 1.5rem;
-      color: #f7768e;
-      font-weight: bold;
     }
 
     .system-msg-desc {
@@ -461,6 +499,9 @@
     <header class="game-header">
       <div class="header-title">成語串聯</div>
       <div class="stats-bar">
+        <button type="button" class="hint-btn" id="hintBtn" title="點擊獲得線索暗示">
+          <span>💡 求救: </span><span id="hintCountDisplay">5</span>
+        </button>
         <div class="stat-badge"><span id="levelDisplay">關卡: 載入中...</span></div>
         <div class="stat-badge" id="timerBadge"><span>倒數: </span><span id="timeDisplay">0</span><span> 秒</span></div>
         <div class="stat-badge"><span>累積分數: </span><span id="scoreDisplay">0</span></div>
@@ -510,8 +551,6 @@
 
     /**
      * XSS 防護跳脫函式
-     * @param {string} str
-     * @returns {string}
      */
     function escapeHTML(str) {
       if (typeof str !== 'string') return '';
@@ -530,13 +569,17 @@
     }
 
     /**
-     * 關卡配置規格
+     * 關卡配置規格（已依需求更新時間配置）
+     * 第一關：60秒
+     * 第二關：120秒
+     * 第三關：180秒（3分鐘）
+     * 第四關：300秒（5分鐘）
      */
     const LEVELS = [
       { id: 1, name: '第一關 (4×4)', rows: 4, cols: 4, idiomCount: 4, timeLimit: 60 },
-      { id: 2, name: '第二關 (4×6)', rows: 4, cols: 6, idiomCount: 6, timeLimit: 90 },
-      { id: 3, name: '第三關 (6×8)', rows: 6, cols: 8, idiomCount: 12, timeLimit: 120 },
-      { id: 4, name: '第四關 (8×8)', rows: 8, cols: 8, idiomCount: 16, timeLimit: 180 }
+      { id: 2, name: '第二關 (4×6)', rows: 4, cols: 6, idiomCount: 6, timeLimit: 120 },
+      { id: 3, name: '第三關 (6×8)', rows: 6, cols: 8, idiomCount: 12, timeLimit: 180 },
+      { id: 4, name: '第四關 (8×8)', rows: 8, cols: 8, idiomCount: 16, timeLimit: 300 }
     ];
 
     /**
@@ -554,6 +597,9 @@
       currentLevelIdioms: [],
       solvedIdioms: [],
       selectedCells: [],
+      boardCells: [],        // 棋盤格實體陣列 [{ element, char, index, idiom, charIndex }]
+      hintsRemaining: 5,     // 四關共用 5 次求救
+      hintTimer: null,
       isGameOver: false,
       isLevelEnded: false,
       reviewPages: [],
@@ -562,12 +608,13 @@
     };
 
     /**
-     * 原生音效管理器
+     * 原生音效管理器（加入 countdown.mp3）
      */
     const SoundManager = {
       correct: new Audio('Sounds/correct.mp3'),
       wrong: new Audio('Sounds/wrong.mp3'),
       win: new Audio('Sounds/win.mp3'),
+      countdown: new Audio('Sounds/countdown.mp3'),
       play(name) {
         try {
           if (this[name]) {
@@ -711,7 +758,7 @@
     }
 
     /**
-     * 題庫載入 (具備檔案環境提示與防護)
+     * 題庫載入 (具備檔案環境防呆檢測)
      */
     async function initGameData() {
       const levelDisplay = document.getElementById('levelDisplay');
@@ -721,7 +768,7 @@
         showErrorModal(
           '本機直接開啟受限提示',
           '檢測到您是直接雙擊檔案開啟（file:// 協議）。瀏覽器安全政策會阻擋本地直接讀取 CSV 檔案。',
-          '請將本專案部署至 GitHub Pages，或使用 VS Code Live Server / 本地伺服器預覽，即可順利讀取！'
+          '請將本專案部署至 GitHub Pages，或使用 VS Code Live Server 預覽，即可順利遊玩！'
         );
         return;
       }
@@ -731,9 +778,7 @@
           credentials: 'same-origin'
         });
 
-        if (!res.ok) {
-          throw new Error('無法讀取檔案');
-        }
+        if (!res.ok) throw new Error('無法讀取檔案');
 
         const csvText = await res.text();
         gameState.allIdioms = parseCSV(csvText);
@@ -797,13 +842,28 @@
       document.getElementById('modalOverlay').style.display = 'none';
     }
 
+    /**
+     * 重啟整輪遊戲（重置 5 次求救次數與所有狀態）
+     */
     function startNewRun() {
       gameState.usedIdioms.clear();
       gameState.currentLevelIndex = 0;
       gameState.totalScore = 0;
+      gameState.hintsRemaining = 5; // 四關共用 5 次求救
+      updateHintUI();
       gameState.isGameOver = false;
       ConfettiEngine.stop();
       startLevel(gameState.currentLevelIndex);
+    }
+
+    /**
+     * 更新求救按鈕介面
+     */
+    function updateHintUI() {
+      const hintCountDisplay = document.getElementById('hintCountDisplay');
+      const hintBtn = document.getElementById('hintBtn');
+      hintCountDisplay.textContent = gameState.hintsRemaining.toString();
+      hintBtn.disabled = (gameState.hintsRemaining <= 0 || gameState.isLevelEnded);
     }
 
     function startLevel(levelIndex) {
@@ -818,7 +878,11 @@
       gameState.isLevelEnded = false;
       gameState.solvedIdioms = [];
       gameState.selectedCells = [];
+      gameState.boardCells = [];
       gameState.timerSeconds = levelConfig.timeLimit;
+
+      clearHintEffects();
+      updateHintUI();
 
       document.getElementById('levelDisplay').textContent = levelConfig.name;
       document.getElementById('scoreDisplay').textContent = gameState.totalScore.toString();
@@ -830,15 +894,20 @@
       gameState.currentLevelIdioms = pickIdiomsForLevel(levelConfig.idiomCount);
       if (gameState.currentLevelIdioms.length === 0) return;
 
-      const chars = [];
+      // 建立包含成語歸屬與字元索引的物件陣列
+      const rawCells = [];
       gameState.currentLevelIdioms.forEach((item) => {
-        for (const char of item.idiom) {
-          chars.push(char);
+        for (let cIdx = 0; cIdx < item.idiom.length; cIdx++) {
+          rawCells.push({
+            char: item.idiom[cIdx],
+            idiom: item.idiom,
+            charIndex: cIdx
+          });
         }
       });
-      const shuffledChars = shuffleArray(chars);
+      const shuffledCells = shuffleArray(rawCells);
 
-      renderBoard(shuffledChars, levelConfig.rows, levelConfig.cols);
+      renderBoard(shuffledCells, levelConfig.rows, levelConfig.cols);
       startTimer();
     }
 
@@ -852,6 +921,9 @@
       return selected;
     }
 
+    /**
+     * 倒數計時器（時間剩餘 <= 10 秒時加入倒數音效）
+     */
     function startTimer() {
       if (gameState.timerId) clearInterval(gameState.timerId);
 
@@ -864,8 +936,10 @@
         gameState.timerSeconds--;
         timeDisplay.textContent = gameState.timerSeconds.toString();
 
-        if (gameState.timerSeconds <= 10) {
+        // 倒數 10 秒以內提示音效與視覺警示
+        if (gameState.timerSeconds <= 10 && gameState.timerSeconds > 0) {
           timerBadge.classList.add('timer-alert');
+          SoundManager.play('countdown');
         }
 
         if (gameState.timerSeconds <= 0) {
@@ -875,31 +949,43 @@
       }, 1000);
     }
 
-    function renderBoard(chars, rows, cols) {
+    function renderBoard(cellsData, rows, cols) {
       const gridBoard = document.getElementById('gridBoard');
       gridBoard.textContent = '';
       gridBoard.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
       gridBoard.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+      gameState.boardCells = [];
 
-      chars.forEach((char, index) => {
+      cellsData.forEach((data, index) => {
         const cell = document.createElement('button');
         cell.type = 'button';
         cell.className = 'grid-cell';
-        cell.textContent = escapeHTML(char);
-        cell.setAttribute('aria-label', `漢字: ${char}`);
+        cell.textContent = escapeHTML(data.char);
+        cell.setAttribute('aria-label', `漢字: ${data.char}`);
 
-        cell.addEventListener('click', () => handleCellClick(cell, char, index));
+        const cellObject = {
+          element: cell,
+          char: data.char,
+          index: index,
+          idiom: data.idiom,
+          charIndex: data.charIndex,
+          isEliminated: false
+        };
+
+        gameState.boardCells.push(cellObject);
+
+        cell.addEventListener('click', () => handleCellClick(cellObject));
         gridBoard.appendChild(cell);
       });
     }
 
-    function handleCellClick(cellElement, char, index) {
-      if (gameState.isLevelEnded || cellElement.classList.contains('eliminated')) return;
+    function handleCellClick(cellObject) {
+      if (gameState.isLevelEnded || cellObject.isEliminated) return;
 
-      const alreadySelected = gameState.selectedCells.some(item => item.index === index);
+      const alreadySelected = gameState.selectedCells.some(item => item.index === cellObject.index);
       if (alreadySelected) return;
 
-      const testSequence = gameState.selectedCells.map(c => c.char).concat([char]).join('');
+      const testSequence = gameState.selectedCells.map(c => c.char).concat([cellObject.char]).join('');
 
       const remainingIdioms = gameState.currentLevelIdioms.filter(
         item => !gameState.solvedIdioms.some(solved => solved.idiom === item.idiom)
@@ -908,8 +994,9 @@
       const matchedCandidates = remainingIdioms.filter(item => item.idiom.startsWith(testSequence));
 
       if (matchedCandidates.length > 0) {
-        cellElement.classList.add('selected');
-        gameState.selectedCells.push({ cellElement, char, index });
+        cellObject.element.classList.add('selected');
+        cellObject.element.classList.remove('hinted');
+        gameState.selectedCells.push(cellObject);
 
         if (gameState.selectedCells.length === 4) {
           handleIdiomSuccess(matchedCandidates[0]);
@@ -920,7 +1007,7 @@
         document.getElementById('comboDisplay').textContent = '連擊: 0';
 
         gameState.selectedCells.forEach(item => {
-          item.cellElement.classList.remove('selected');
+          item.element.classList.remove('selected');
         });
         gameState.selectedCells = [];
       }
@@ -939,8 +1026,10 @@
       document.getElementById('comboDisplay').textContent = `連擊: ${gameState.combo}`;
 
       gameState.selectedCells.forEach(item => {
-        item.cellElement.classList.remove('selected');
-        item.cellElement.classList.add('eliminated');
+        item.element.classList.remove('selected');
+        item.element.classList.remove('hinted');
+        item.element.classList.add('eliminated');
+        item.isEliminated = true;
       });
       gameState.selectedCells = [];
 
@@ -975,9 +1064,99 @@
       solvedList.prepend(card);
     }
 
+    /**
+     * 求救機制實作：
+     * 1. 扣除 1 次求救機會（四關共 5 次）
+     * 2. 找出 1 個正確的字（如果還沒點字，提示某成語的首字；如果已點了部分字，提示該成語的下一個字）
+     * 3. 隨機選取 2 個錯誤/干擾字
+     * 4. 總共 3 個格子變色提示，持續 3 秒後恢復
+     */
+    function triggerHint() {
+      if (gameState.hintsRemaining <= 0 || gameState.isLevelEnded) return;
+
+      // 找出尚未解開的成語
+      const remainingIdioms = gameState.currentLevelIdioms.filter(
+        item => !gameState.solvedIdioms.some(s => s.idiom === item.idiom)
+      );
+      if (remainingIdioms.length === 0) return;
+
+      let targetIdiom = null;
+      let targetCharIndex = 0;
+
+      if (gameState.selectedCells.length > 0) {
+        // 已有點選部分前綴：依據當前前綴收斂目標
+        const currentPrefix = gameState.selectedCells.map(c => c.char).join('');
+        const matched = remainingIdioms.filter(item => item.idiom.startsWith(currentPrefix));
+        if (matched.length > 0) {
+          targetIdiom = matched[0].idiom;
+          targetCharIndex = gameState.selectedCells.length; // 下一個正確字的索引 (0~3)
+        } else {
+          // 異常狀態回退至首字
+          targetIdiom = remainingIdioms[0].idiom;
+          targetCharIndex = 0;
+        }
+      } else {
+        // 尚未點選任何字：隨機挑選一組未解成語，提示其首字 (第 0 個字)
+        const randomChoice = remainingIdioms[Math.floor(Math.random() * remainingIdioms.length)];
+        targetIdiom = randomChoice.idiom;
+        targetCharIndex = 0;
+      }
+
+      // 尋找棋盤上對應 targetIdiom 且是第 targetCharIndex 個字、且尚未被消除/選取的格子
+      const correctCell = gameState.boardCells.find(cell => 
+        !cell.isEliminated &&
+        !gameState.selectedCells.some(sc => sc.index === cell.index) &&
+        cell.idiom === targetIdiom &&
+        cell.charIndex === targetCharIndex
+      );
+
+      if (!correctCell) return;
+
+      // 扣除求救次數並更新介面
+      gameState.hintsRemaining--;
+      updateHintUI();
+
+      // 尋找 2 個干擾/錯誤的字（未消除、未選取、且不是該正確格）
+      const candidateWrongCells = gameState.boardCells.filter(cell =>
+        !cell.isEliminated &&
+        !gameState.selectedCells.some(sc => sc.index === cell.index) &&
+        cell.index !== correctCell.index
+      );
+
+      const shuffledCandidates = shuffleArray(candidateWrongCells);
+      const wrongCells = shuffledCandidates.slice(0, 2);
+
+      // 套用提示效果（1 個正確 + 2 個錯誤變色）
+      clearHintEffects();
+      const hintedGroup = [correctCell, ...wrongCells];
+      hintedGroup.forEach(c => {
+        c.element.classList.add('hinted');
+      });
+
+      // 3 秒後自動恢復
+      gameState.hintTimer = setTimeout(() => {
+        clearHintEffects();
+      }, 3000);
+    }
+
+    /**
+     * 清除當前求救提示的視覺樣式
+     */
+    function clearHintEffects() {
+      if (gameState.hintTimer) {
+        clearTimeout(gameState.hintTimer);
+        gameState.hintTimer = null;
+      }
+      gameState.boardCells.forEach(c => {
+        c.element.classList.remove('hinted');
+      });
+    }
+
     function handleLevelComplete() {
       gameState.isLevelEnded = true;
       if (gameState.timerId) clearInterval(gameState.timerId);
+      clearHintEffects();
+      updateHintUI();
 
       const timeBonus = Math.max(0, gameState.timerSeconds) * 5;
       gameState.currentLevelScore += timeBonus;
@@ -998,6 +1177,8 @@
 
     function handleTimeUp() {
       gameState.isLevelEnded = true;
+      clearHintEffects();
+      updateHintUI();
       showSettlementModal('時間到！挑戰失敗', false, true);
     }
 
@@ -1184,6 +1365,9 @@
         updateTableRows();
       });
     }
+
+    // 事件監聽綁定
+    document.getElementById('hintBtn').addEventListener('click', triggerHint);
 
     document.getElementById('prevPageBtn').addEventListener('click', () => {
       if (gameState.currentReviewPage > 0) {
