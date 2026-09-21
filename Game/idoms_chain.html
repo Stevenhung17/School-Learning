@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>成語串聯</title>
 
-  <!-- 資安強制規範：嚴格 Content-Security-Policy 與安全標頭 -->
+  <!-- 資安強制規範：嚴格 Content-Security-Policy 與安全性標頭 -->
   <meta http-equiv="Content-Security-Policy"
         content="
           default-src 'self';
@@ -69,12 +69,12 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0 20px;
+      padding: 0 16px;
       border-bottom: 2px solid #414868;
     }
 
     .header-title {
-      font-size: clamp(1.5rem, 2.0vw, 2.0rem);
+      font-size: clamp(1.4rem, 1.8vw, 1.9rem);
       font-weight: bold;
       color: #e0af68;
       letter-spacing: 2px;
@@ -82,9 +82,9 @@
 
     .stats-bar {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       align-items: center;
-      font-size: clamp(1.05rem, 1.25vw, 1.3rem);
+      font-size: clamp(0.95rem, 1.15vw, 1.2rem);
     }
 
     .stat-badge {
@@ -108,28 +108,40 @@
       50% { opacity: 0.5; }
     }
 
-    /* 求救按鈕樣式 */
-    .hint-btn {
-      background-color: #bb9af7;
-      color: #1a1b26;
+    /* 按鈕共用設定 */
+    .action-btn {
       border: 1px solid #c0caf5;
       font-family: inherit;
       font-weight: bold;
-      padding: 5px 14px;
+      padding: 5px 12px;
       border-radius: 20px;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       transition: background-color 0.2s, transform 0.1s;
     }
 
+    .hint-btn {
+      background-color: #bb9af7;
+      color: #1a1b26;
+    }
     .hint-btn:hover:not(:disabled) {
       background-color: #d0bcf9;
       transform: scale(1.04);
     }
 
-    .hint-btn:disabled {
+    .surrender-btn {
+      background-color: #f7768e;
+      color: #1a1b26;
+      border-color: #ff9e64;
+    }
+    .surrender-btn:hover:not(:disabled) {
+      background-color: #ff99ac;
+      transform: scale(1.04);
+    }
+
+    .action-btn:disabled {
       background-color: #565f89;
       color: #a9b1d6;
       cursor: not-allowed;
@@ -236,7 +248,7 @@
       align-content: center;
     }
 
-    /* 棋盤格子 (自適應放大兩級) */
+    /* 棋盤格子 */
     .grid-cell {
       background-color: #292e42;
       color: #c0caf5;
@@ -263,14 +275,12 @@
       box-shadow: 0 1px 0 #1a1b26;
     }
 
-    /* 選取中狀態 */
     .grid-cell.selected {
       background-color: #e0af68;
       color: #1a1b26;
       border-color: #ff9e64;
     }
 
-    /* 求救提示變色 (紫色呼吸光暈，涵蓋 1 正確 + 2 干擾) */
     .grid-cell.hinted {
       background-color: #792e9e !important;
       color: #ffffff !important;
@@ -284,7 +294,6 @@
       to { transform: scale(1.06); }
     }
 
-    /* 答對消除：保持空間佔位不移位 */
     .grid-cell.eliminated {
       visibility: hidden;
       pointer-events: none;
@@ -411,7 +420,6 @@
       background-color: #b9f27c;
     }
 
-    /* 錯誤警示對話框樣式 */
     .system-dialog {
       flex: 1;
       display: flex;
@@ -430,7 +438,7 @@
       line-height: 1.6;
     }
 
-    /* 玩家輸入暱稱與排行榜容器 */
+    /* 排行榜與名稱輸入容器 */
     .endgame-box {
       flex: 1;
       display: flex;
@@ -478,7 +486,6 @@
       color: #e0af68;
     }
 
-    /* 原生彩帶 Canvas */
     #confettiCanvas {
       position: absolute;
       top: 0;
@@ -492,15 +499,17 @@
 </head>
 <body>
 
-  <!-- 16:9 主畫面視窗 -->
   <div class="game-viewport">
     
     <!-- 頂端即時狀態列 -->
     <header class="game-header">
       <div class="header-title">成語串聯</div>
       <div class="stats-bar">
-        <button type="button" class="hint-btn" id="hintBtn" title="點擊獲得線索暗示">
+        <button type="button" class="action-btn hint-btn" id="hintBtn" title="獲得 1 正確 + 2 干擾字提示">
           <span>💡 求救: </span><span id="hintCountDisplay">5</span>
+        </button>
+        <button type="button" class="action-btn surrender-btn" id="surrenderBtn" title="放棄當前關卡並直接查看所有成語答案">
+          <span>🏳️ 放棄 (看答案)</span>
         </button>
         <div class="stat-badge"><span id="levelDisplay">關卡: 載入中...</span></div>
         <div class="stat-badge" id="timerBadge"><span>倒數: </span><span id="timeDisplay">0</span><span> 秒</span></div>
@@ -508,7 +517,7 @@
       </div>
     </header>
 
-    <!-- 遊戲主體內容 (左側解析，右側網格) -->
+    <!-- 遊戲主體內容 -->
     <main class="game-content">
       <section class="left-panel">
         <div class="panel-header">
@@ -568,13 +577,6 @@
       });
     }
 
-    /**
-     * 關卡配置規格（已依需求更新時間配置）
-     * 第一關：60秒
-     * 第二關：120秒
-     * 第三關：180秒（3分鐘）
-     * 第四關：300秒（5分鐘）
-     */
     const LEVELS = [
       { id: 1, name: '第一關 (4×4)', rows: 4, cols: 4, idiomCount: 4, timeLimit: 60 },
       { id: 2, name: '第二關 (4×6)', rows: 4, cols: 6, idiomCount: 6, timeLimit: 120 },
@@ -582,9 +584,6 @@
       { id: 4, name: '第四關 (8×8)', rows: 8, cols: 8, idiomCount: 16, timeLimit: 300 }
     ];
 
-    /**
-     * 遊戲全域狀態 (存於記憶體)
-     */
     const gameState = {
       allIdioms: [],
       usedIdioms: new Set(),
@@ -597,8 +596,8 @@
       currentLevelIdioms: [],
       solvedIdioms: [],
       selectedCells: [],
-      boardCells: [],        // 棋盤格實體陣列 [{ element, char, index, idiom, charIndex }]
-      hintsRemaining: 5,     // 四關共用 5 次求救
+      boardCells: [],
+      hintsRemaining: 5,
       hintTimer: null,
       isGameOver: false,
       isLevelEnded: false,
@@ -608,7 +607,7 @@
     };
 
     /**
-     * 原生音效管理器（加入 countdown.mp3）
+     * 音效管理器：加入強制停止與防殘留機制
      */
     const SoundManager = {
       correct: new Audio('Sounds/correct.mp3'),
@@ -622,12 +621,20 @@
             this[name].play().catch(() => {});
           }
         } catch {}
+      },
+      stop(name) {
+        try {
+          if (this[name]) {
+            this[name].pause();
+            this[name].currentTime = 0;
+          }
+        } catch {}
+      },
+      stopAll() {
+        ['correct', 'wrong', 'win', 'countdown'].forEach(name => this.stop(name));
       }
     };
 
-    /**
-     * 原生 Canvas 彩帶粒子引擎
-     */
     const ConfettiEngine = {
       canvas: document.getElementById('confettiCanvas'),
       ctx: null,
@@ -698,9 +705,6 @@
       }
     };
 
-    /**
-     * CSV 資料解析器
-     */
     function parseCSV(text) {
       const lines = text.trim().split(/\r?\n/);
       if (lines.length < 2) return [];
@@ -745,9 +749,6 @@
       return idioms;
     }
 
-    /**
-     * Fisher-Yates 洗牌演算法
-     */
     function shuffleArray(arr) {
       const copy = [...arr];
       for (let i = copy.length - 1; i > 0; i--) {
@@ -757,9 +758,6 @@
       return copy;
     }
 
-    /**
-     * 題庫載入 (具備檔案環境防呆檢測)
-     */
     async function initGameData() {
       const levelDisplay = document.getElementById('levelDisplay');
       levelDisplay.textContent = '關卡: 載入題庫中...';
@@ -768,7 +766,7 @@
         showErrorModal(
           '本機直接開啟受限提示',
           '檢測到您是直接雙擊檔案開啟（file:// 協議）。瀏覽器安全政策會阻擋本地直接讀取 CSV 檔案。',
-          '請將本專案部署至 GitHub Pages，或使用 VS Code Live Server 預覽，即可順利遊玩！'
+          '請將本專案部署至 GitHub Pages，或使用 VS Code Live Server 預覽即可正常遊玩！'
         );
         return;
       }
@@ -842,28 +840,25 @@
       document.getElementById('modalOverlay').style.display = 'none';
     }
 
-    /**
-     * 重啟整輪遊戲（重置 5 次求救次數與所有狀態）
-     */
     function startNewRun() {
       gameState.usedIdioms.clear();
       gameState.currentLevelIndex = 0;
       gameState.totalScore = 0;
-      gameState.hintsRemaining = 5; // 四關共用 5 次求救
-      updateHintUI();
+      gameState.hintsRemaining = 5;
+      updateActionButtons();
       gameState.isGameOver = false;
       ConfettiEngine.stop();
       startLevel(gameState.currentLevelIndex);
     }
 
-    /**
-     * 更新求救按鈕介面
-     */
-    function updateHintUI() {
+    function updateActionButtons() {
       const hintCountDisplay = document.getElementById('hintCountDisplay');
       const hintBtn = document.getElementById('hintBtn');
+      const surrenderBtn = document.getElementById('surrenderBtn');
+      
       hintCountDisplay.textContent = gameState.hintsRemaining.toString();
       hintBtn.disabled = (gameState.hintsRemaining <= 0 || gameState.isLevelEnded);
+      surrenderBtn.disabled = gameState.isLevelEnded;
     }
 
     function startLevel(levelIndex) {
@@ -882,7 +877,8 @@
       gameState.timerSeconds = levelConfig.timeLimit;
 
       clearHintEffects();
-      updateHintUI();
+      SoundManager.stopAll();
+      updateActionButtons();
 
       document.getElementById('levelDisplay').textContent = levelConfig.name;
       document.getElementById('scoreDisplay').textContent = gameState.totalScore.toString();
@@ -890,11 +886,9 @@
       document.getElementById('solvedList').textContent = '';
       hideModal();
 
-      // 抽取本關成語 (不重複)
       gameState.currentLevelIdioms = pickIdiomsForLevel(levelConfig.idiomCount);
       if (gameState.currentLevelIdioms.length === 0) return;
 
-      // 建立包含成語歸屬與字元索引的物件陣列
       const rawCells = [];
       gameState.currentLevelIdioms.forEach((item) => {
         for (let cIdx = 0; cIdx < item.idiom.length; cIdx++) {
@@ -921,9 +915,6 @@
       return selected;
     }
 
-    /**
-     * 倒數計時器（時間剩餘 <= 10 秒時加入倒數音效）
-     */
     function startTimer() {
       if (gameState.timerId) clearInterval(gameState.timerId);
 
@@ -936,7 +927,6 @@
         gameState.timerSeconds--;
         timeDisplay.textContent = gameState.timerSeconds.toString();
 
-        // 倒數 10 秒以內提示音效與視覺警示
         if (gameState.timerSeconds <= 10 && gameState.timerSeconds > 0) {
           timerBadge.classList.add('timer-alert');
           SoundManager.play('countdown');
@@ -1064,17 +1054,9 @@
       solvedList.prepend(card);
     }
 
-    /**
-     * 求救機制實作：
-     * 1. 扣除 1 次求救機會（四關共 5 次）
-     * 2. 找出 1 個正確的字（如果還沒點字，提示某成語的首字；如果已點了部分字，提示該成語的下一個字）
-     * 3. 隨機選取 2 個錯誤/干擾字
-     * 4. 總共 3 個格子變色提示，持續 3 秒後恢復
-     */
     function triggerHint() {
       if (gameState.hintsRemaining <= 0 || gameState.isLevelEnded) return;
 
-      // 找出尚未解開的成語
       const remainingIdioms = gameState.currentLevelIdioms.filter(
         item => !gameState.solvedIdioms.some(s => s.idiom === item.idiom)
       );
@@ -1084,25 +1066,21 @@
       let targetCharIndex = 0;
 
       if (gameState.selectedCells.length > 0) {
-        // 已有點選部分前綴：依據當前前綴收斂目標
         const currentPrefix = gameState.selectedCells.map(c => c.char).join('');
         const matched = remainingIdioms.filter(item => item.idiom.startsWith(currentPrefix));
         if (matched.length > 0) {
           targetIdiom = matched[0].idiom;
-          targetCharIndex = gameState.selectedCells.length; // 下一個正確字的索引 (0~3)
+          targetCharIndex = gameState.selectedCells.length;
         } else {
-          // 異常狀態回退至首字
           targetIdiom = remainingIdioms[0].idiom;
           targetCharIndex = 0;
         }
       } else {
-        // 尚未點選任何字：隨機挑選一組未解成語，提示其首字 (第 0 個字)
         const randomChoice = remainingIdioms[Math.floor(Math.random() * remainingIdioms.length)];
         targetIdiom = randomChoice.idiom;
         targetCharIndex = 0;
       }
 
-      // 尋找棋盤上對應 targetIdiom 且是第 targetCharIndex 個字、且尚未被消除/選取的格子
       const correctCell = gameState.boardCells.find(cell => 
         !cell.isEliminated &&
         !gameState.selectedCells.some(sc => sc.index === cell.index) &&
@@ -1112,11 +1090,9 @@
 
       if (!correctCell) return;
 
-      // 扣除求救次數並更新介面
       gameState.hintsRemaining--;
-      updateHintUI();
+      updateActionButtons();
 
-      // 尋找 2 個干擾/錯誤的字（未消除、未選取、且不是該正確格）
       const candidateWrongCells = gameState.boardCells.filter(cell =>
         !cell.isEliminated &&
         !gameState.selectedCells.some(sc => sc.index === cell.index) &&
@@ -1126,22 +1102,17 @@
       const shuffledCandidates = shuffleArray(candidateWrongCells);
       const wrongCells = shuffledCandidates.slice(0, 2);
 
-      // 套用提示效果（1 個正確 + 2 個錯誤變色）
       clearHintEffects();
       const hintedGroup = [correctCell, ...wrongCells];
       hintedGroup.forEach(c => {
         c.element.classList.add('hinted');
       });
 
-      // 3 秒後自動恢復
       gameState.hintTimer = setTimeout(() => {
         clearHintEffects();
       }, 3000);
     }
 
-    /**
-     * 清除當前求救提示的視覺樣式
-     */
     function clearHintEffects() {
       if (gameState.hintTimer) {
         clearTimeout(gameState.hintTimer);
@@ -1152,11 +1123,30 @@
       });
     }
 
+    /**
+     * 放棄並看答案功能
+     */
+    function triggerSurrender() {
+      if (gameState.isLevelEnded) return;
+
+      // 停止計時器與所有音效（包括倒數音效）
+      if (gameState.timerId) clearInterval(gameState.timerId);
+      SoundManager.stopAll();
+      clearHintEffects();
+
+      gameState.isLevelEnded = true;
+      updateActionButtons();
+
+      // 標記為挑戰結束，開啟結算與答案回顧
+      showSettlementModal('挑戰結束（已放棄看答案）', false, true);
+    }
+
     function handleLevelComplete() {
       gameState.isLevelEnded = true;
       if (gameState.timerId) clearInterval(gameState.timerId);
+      SoundManager.stop('countdown'); // 過關時確定關閉倒數音樂
       clearHintEffects();
-      updateHintUI();
+      updateActionButtons();
 
       const timeBonus = Math.max(0, gameState.timerSeconds) * 5;
       gameState.currentLevelScore += timeBonus;
@@ -1175,10 +1165,15 @@
       }
     }
 
+    /**
+     * 時間到處置（確實停止倒數音樂）
+     */
     function handleTimeUp() {
       gameState.isLevelEnded = true;
+      if (gameState.timerId) clearInterval(gameState.timerId);
+      SoundManager.stopAll(); // 強制停止所有音效（包含倒數音樂）
       clearHintEffects();
-      updateHintUI();
+      updateActionButtons();
       showSettlementModal('時間到！挑戰失敗', false, true);
     }
 
@@ -1368,6 +1363,7 @@
 
     // 事件監聽綁定
     document.getElementById('hintBtn').addEventListener('click', triggerHint);
+    document.getElementById('surrenderBtn').addEventListener('click', triggerSurrender);
 
     document.getElementById('prevPageBtn').addEventListener('click', () => {
       if (gameState.currentReviewPage > 0) {
