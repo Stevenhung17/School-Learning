@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>成語串聯</title>
 
-  <!-- 資安強制規範：嚴格 Content-Security-Policy 與安全性標頭 -->
+  <!-- 資安強制規範：嚴格 Content-Security-Policy 與安全標頭 -->
   <meta http-equiv="Content-Security-Policy"
         content="
           default-src 'self';
@@ -33,8 +33,9 @@
       -webkit-user-select: none;
     }
 
+    /* 全站字型設定為微軟正黑體，基礎字級放大並自適應 */
     body {
-      font-family: "DFKai-SB", "BiauKai", "Kaiti TC", "KaiTi", serif;
+      font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
       background-color: #2b2d42;
       color: #edf2f4;
       display: flex;
@@ -42,11 +43,13 @@
       align-items: center;
       min-height: 100vh;
       overflow: hidden;
+      font-size: clamp(16px, 1.25vw, 19px);
     }
 
+    /* 16:9 主容器約束 */
     .game-viewport {
       width: 95vw;
-      height: 53.43vw; /* 16:9 比例 */
+      height: 53.43vw; /* 95 * 9 / 16 */
       max-width: 1400px;
       max-height: 787.5px;
       background-color: #1a1b26;
@@ -59,9 +62,9 @@
       overflow: hidden;
     }
 
-    /* 頂部資訊列 */
+    /* 頂部資訊列 (字體放大兩級) */
     header.game-header {
-      height: 54px;
+      height: 56px;
       background-color: #24283b;
       display: flex;
       justify-content: space-between;
@@ -71,7 +74,7 @@
     }
 
     .header-title {
-      font-size: 1.5rem;
+      font-size: clamp(1.6rem, 2.2vw, 2.1rem);
       font-weight: bold;
       color: #e0af68;
       letter-spacing: 2px;
@@ -79,13 +82,13 @@
 
     .stats-bar {
       display: flex;
-      gap: 20px;
-      font-size: 1.15rem;
+      gap: 16px;
+      font-size: clamp(1.15rem, 1.4vw, 1.4rem);
     }
 
     .stat-badge {
       background-color: #16161e;
-      padding: 4px 14px;
+      padding: 5px 14px;
       border-radius: 20px;
       border: 1px solid #565f89;
       display: flex;
@@ -110,11 +113,11 @@
       display: flex;
       padding: 16px;
       gap: 16px;
-      height: calc(100% - 54px);
+      height: calc(100% - 56px);
       position: relative;
     }
 
-    /* 左側解析與即時列表 */
+    /* 左側成語釋義與狀態面板 */
     .left-panel {
       flex: 0 0 35%;
       background-color: #24283b;
@@ -127,7 +130,7 @@
     }
 
     .panel-header {
-      font-size: 1.25rem;
+      font-size: clamp(1.35rem, 1.6vw, 1.6rem);
       font-weight: bold;
       color: #7aa2f7;
       padding-bottom: 8px;
@@ -139,7 +142,7 @@
     }
 
     .combo-indicator {
-      font-size: 0.95rem;
+      font-size: clamp(1.1rem, 1.3vw, 1.35rem);
       color: #ff9e64;
       font-weight: bold;
     }
@@ -155,28 +158,28 @@
 
     .solved-card {
       background-color: #1f2335;
-      padding: 10px;
+      padding: 12px;
       border-radius: 6px;
-      border-left: 4px solid #9ece6a;
+      border-left: 5px solid #9ece6a;
       box-shadow: 0 2px 5px rgba(0,0,0,0.3);
     }
 
     .solved-title {
-      font-size: 1.25rem;
+      font-size: clamp(1.4rem, 1.7vw, 1.75rem);
       font-weight: bold;
       color: #9ece6a;
     }
 
     .solved-bopomofo {
-      font-size: 0.95rem;
+      font-size: clamp(1.05rem, 1.25vw, 1.25rem);
       color: #bb9af7;
-      margin: 3px 0;
+      margin: 4px 0;
     }
 
     .solved-meaning {
-      font-size: 0.9rem;
+      font-size: clamp(1.0rem, 1.15vw, 1.2rem);
       color: #c0caf5;
-      line-height: 1.4;
+      line-height: 1.5;
       text-align: justify;
     }
 
@@ -203,14 +206,14 @@
       align-content: center;
     }
 
-    /* 棋盤格子按鈕樣式 */
+    /* 棋盤格子 (自適應放大兩級) */
     .grid-cell {
       background-color: #292e42;
       color: #c0caf5;
       border: 2px solid #565f89;
       border-radius: 6px;
       font-family: inherit;
-      font-size: 1.8rem;
+      font-size: clamp(1.5rem, min(4.8vh, 2.7vw), 2.5rem);
       font-weight: bold;
       display: flex;
       justify-content: center;
@@ -243,14 +246,14 @@
       pointer-events: none;
     }
 
-    /* 浮層 Modal 樣式（包含全螢幕阻擋遮罩） */
+    /* 浮層視窗樣式 */
     .modal-overlay {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(15, 15, 23, 0.94);
+      background-color: rgba(15, 15, 23, 0.95);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -261,9 +264,9 @@
       background-color: #24283b;
       border: 2px solid #7aa2f7;
       border-radius: 12px;
-      width: 780px;
-      max-width: 90%;
-      height: 520px;
+      width: 800px;
+      max-width: 92%;
+      height: 540px;
       max-height: 90%;
       display: flex;
       flex-direction: column;
@@ -272,7 +275,7 @@
     }
 
     .modal-header {
-      font-size: 1.6rem;
+      font-size: clamp(1.7rem, 2.2vw, 2.2rem);
       color: #e0af68;
       text-align: center;
       font-weight: bold;
@@ -287,7 +290,7 @@
       padding: 10px;
       border-radius: 6px;
       margin-bottom: 14px;
-      font-size: 1.1rem;
+      font-size: clamp(1.1rem, 1.3vw, 1.3rem);
     }
 
     .review-container {
@@ -302,27 +305,27 @@
 
     .review-item {
       background-color: #1f2335;
-      padding: 10px;
+      padding: 12px;
       border-radius: 6px;
       border: 1px solid #414868;
     }
 
     .review-idiom {
-      font-size: 1.15rem;
+      font-size: clamp(1.35rem, 1.5vw, 1.55rem);
       font-weight: bold;
       color: #7dcfff;
     }
 
     .review-bopomofo {
-      font-size: 0.85rem;
+      font-size: clamp(1.05rem, 1.2vw, 1.2rem);
       color: #bb9af7;
-      margin: 2px 0;
+      margin: 3px 0;
     }
 
     .review-meaning {
-      font-size: 0.85rem;
+      font-size: clamp(0.95rem, 1.1vw, 1.15rem);
       color: #a9b1d6;
-      line-height: 1.35;
+      line-height: 1.45;
     }
 
     .modal-footer {
@@ -335,8 +338,8 @@
 
     .btn {
       font-family: inherit;
-      padding: 8px 18px;
-      font-size: 1rem;
+      padding: 8px 20px;
+      font-size: clamp(1.0rem, 1.2vw, 1.15rem);
       font-weight: bold;
       color: #fff;
       background-color: #7aa2f7;
@@ -377,24 +380,16 @@
     }
 
     .system-msg-title {
-      font-size: 1.4rem;
+      font-size: 1.5rem;
       color: #f7768e;
       font-weight: bold;
     }
 
     .system-msg-desc {
-      font-size: 1rem;
+      font-size: 1.1rem;
       color: #c0caf5;
-      max-width: 580px;
+      max-width: 600px;
       line-height: 1.6;
-    }
-
-    .code-snippet {
-      background-color: #16161e;
-      padding: 6px 12px;
-      border-radius: 4px;
-      color: #e0af68;
-      font-family: monospace;
     }
 
     /* 玩家輸入暱稱與排行榜容器 */
@@ -414,8 +409,8 @@
 
     .input-name {
       font-family: inherit;
-      padding: 8px 12px;
-      font-size: 1.1rem;
+      padding: 8px 14px;
+      font-size: 1.15rem;
       border-radius: 6px;
       border: 2px solid #565f89;
       background-color: #16161e;
@@ -431,7 +426,7 @@
       width: 100%;
       border-collapse: collapse;
       margin-top: 10px;
-      font-size: 1rem;
+      font-size: 1.05rem;
     }
 
     .leaderboard-table th, .leaderboard-table td {
@@ -459,6 +454,7 @@
 </head>
 <body>
 
+  <!-- 16:9 主畫面視窗 -->
   <div class="game-viewport">
     
     <!-- 頂端即時狀態列 -->
@@ -471,7 +467,7 @@
       </div>
     </header>
 
-    <!-- 遊戲主體內容 -->
+    <!-- 遊戲主體內容 (左側解析，右側網格) -->
     <main class="game-content">
       <section class="left-panel">
         <div class="panel-header">
@@ -499,7 +495,7 @@
 
         <div class="modal-footer" id="modalFooter">
           <button type="button" class="btn" id="prevPageBtn">上一頁</button>
-          <span id="pageIndicator" style="font-size: 0.95rem; color: #a9b1d6;">第 1 頁</span>
+          <span id="pageIndicator" style="font-size: 1rem; color: #a9b1d6;">第 1 頁</span>
           <button type="button" class="btn btn-success" id="nextActionBtn">下一頁</button>
         </div>
       </div>
@@ -514,6 +510,8 @@
 
     /**
      * XSS 防護跳脫函式
+     * @param {string} str
+     * @returns {string}
      */
     function escapeHTML(str) {
       if (typeof str !== 'string') return '';
@@ -531,6 +529,9 @@
       });
     }
 
+    /**
+     * 關卡配置規格
+     */
     const LEVELS = [
       { id: 1, name: '第一關 (4×4)', rows: 4, cols: 4, idiomCount: 4, timeLimit: 60 },
       { id: 2, name: '第二關 (4×6)', rows: 4, cols: 6, idiomCount: 6, timeLimit: 90 },
@@ -538,6 +539,9 @@
       { id: 4, name: '第四關 (8×8)', rows: 8, cols: 8, idiomCount: 16, timeLimit: 180 }
     ];
 
+    /**
+     * 遊戲全域狀態 (存於記憶體)
+     */
     const gameState = {
       allIdioms: [],
       usedIdioms: new Set(),
@@ -557,6 +561,9 @@
       sessionLeaderboard: []
     };
 
+    /**
+     * 原生音效管理器
+     */
     const SoundManager = {
       correct: new Audio('Sounds/correct.mp3'),
       wrong: new Audio('Sounds/wrong.mp3'),
@@ -571,6 +578,9 @@
       }
     };
 
+    /**
+     * 原生 Canvas 彩帶粒子引擎
+     */
     const ConfettiEngine = {
       canvas: document.getElementById('confettiCanvas'),
       ctx: null,
@@ -593,7 +603,7 @@
         this.isActive = true;
         this.particles = [];
         const colors = ['#f7768e', '#7aa2f7', '#9ece6a', '#e0af68', '#bb9af7', '#7dcfff'];
-        for (let i = 0; i < 150; i++) {
+        for (let i = 0; i < 160; i++) {
           this.particles.push({
             x: Math.random() * this.canvas.width,
             y: Math.random() * this.canvas.height - this.canvas.height,
@@ -688,6 +698,9 @@
       return idioms;
     }
 
+    /**
+     * Fisher-Yates 洗牌演算法
+     */
     function shuffleArray(arr) {
       const copy = [...arr];
       for (let i = copy.length - 1; i > 0; i--) {
@@ -698,18 +711,17 @@
     }
 
     /**
-     * 題庫載入 (增加完整安全防呆與錯誤攔截)
+     * 題庫載入 (具備檔案環境提示與防護)
      */
     async function initGameData() {
       const levelDisplay = document.getElementById('levelDisplay');
       levelDisplay.textContent = '關卡: 載入題庫中...';
 
-      // 檢查是否以 file:// 協議直接開啟
       if (window.location.protocol === 'file:') {
         showErrorModal(
           '本機直接開啟受限提示',
-          '檢測到您是透過檔案總管直接開啟（file:// 協議）。現代瀏覽器基於資安政策，會禁止直接讀取本機 CSV 檔案。',
-          '請將本專案部署至 GitHub Pages，或使用 VS Code Live Server 預覽，即可順利讀取！'
+          '檢測到您是直接雙擊檔案開啟（file:// 協議）。瀏覽器安全政策會阻擋本地直接讀取 CSV 檔案。',
+          '請將本專案部署至 GitHub Pages，或使用 VS Code Live Server / 本地伺服器預覽，即可順利讀取！'
         );
         return;
       }
@@ -727,24 +739,20 @@
         gameState.allIdioms = parseCSV(csvText);
 
         if (gameState.allIdioms.length < 50) {
-          throw new Error('題庫資料不足或格式不正確');
+          throw new Error('題庫資料不足');
         }
 
-        // 題庫正常載入，隱藏任何彈窗並開始遊戲
         hideModal();
         startNewRun();
       } catch (err) {
         showErrorModal(
           '題庫載入失敗',
-          '系統無法讀取到 CSV 子資料夾中的題庫檔：dict_idioms_2020_20260625_UTF8.csv。',
-          '請確認 CSV 檔案名稱、大小寫及資料夾路徑「CSV/」是否正確放置。'
+          '無法讀取 CSV 資料夾中的 dict_idioms_2020_20260625_UTF8.csv。',
+          '請確認檔案名稱、大小寫及資料夾路徑「CSV/」是否放置正確。'
         );
       }
     }
 
-    /**
-     * 顯示系統錯誤訊息視窗（防止進入錯誤的結算狀態）
-     */
     function showErrorModal(title, message, instruction) {
       const modalOverlay = document.getElementById('modalOverlay');
       const modalTitle = document.getElementById('modalTitle');
@@ -800,7 +808,6 @@
 
     function startLevel(levelIndex) {
       if (levelIndex >= LEVELS.length) {
-        handleGameVictory();
         return;
       }
 
@@ -819,10 +826,8 @@
       document.getElementById('solvedList').textContent = '';
       hideModal();
 
-      // 抽選成語
+      // 抽取本關成語 (不重複)
       gameState.currentLevelIdioms = pickIdiomsForLevel(levelConfig.idiomCount);
-
-      // 防呆：若抽取為空則不繼續執行
       if (gameState.currentLevelIdioms.length === 0) return;
 
       const chars = [];
