@@ -33,7 +33,7 @@
       -webkit-user-select: none;
     }
 
-    /* 全站字型設定為微軟正黑體，動態字級放大並自適應 */
+    /* 全站微軟正黑體設定與自適應字級 */
     body {
       font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
       background-color: #2b2d42;
@@ -161,7 +161,7 @@
       transform: scale(1.04);
     }
 
-    /* 放棄按鈕獨立置於最右側並加大間距避免誤觸 */
+    /* 放棄按鈕獨立置於最右側 */
     .surrender-btn {
       background-color: #f7768e;
       color: #1a1b26;
@@ -510,6 +510,35 @@
       margin-bottom: 4px;
     }
 
+    /* 初始設備提醒警語對話框專屬樣式 */
+    .initial-alert-card {
+      width: 620px;
+      height: auto;
+      min-height: 320px;
+      text-align: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .initial-alert-icon {
+      font-size: 3rem;
+      color: #f7768e;
+    }
+
+    .initial-alert-title {
+      font-size: clamp(1.4rem, 2vw, 1.8rem);
+      color: #e0af68;
+      font-weight: bold;
+      letter-spacing: 2px;
+    }
+
+    .initial-alert-desc {
+      font-size: clamp(1.05rem, 1.3vw, 1.2rem);
+      color: #edf2f4;
+      line-height: 1.7;
+      padding: 0 10px;
+    }
+
     .system-dialog {
       flex: 1;
       display: flex;
@@ -601,7 +630,7 @@
       </div>
 
       <div class="header-center">
-        <div class="stat-badge"><span id="levelDisplay">關卡: 載入中...</span></div>
+        <div class="stat-badge"><span id="levelDisplay">關卡: 準備中...</span></div>
         <div class="stat-badge" id="timerBadge"><span>倒數: </span><span id="timeDisplay">0</span><span> 秒</span></div>
         <div class="stat-badge"><span>累積分數: </span><span id="scoreDisplay">0</span></div>
       </div>
@@ -642,7 +671,7 @@
 
     <!-- 彈出式通用視窗 -->
     <div class="modal-overlay" id="modalOverlay" style="display: none;">
-      <div class="modal-card">
+      <div class="modal-card" id="modalCard">
         <h2 class="modal-header" id="modalTitle">載入中</h2>
         <div class="modal-scores" id="modalScores" style="display: none;">
           <div>本關得分: <span id="modalLevelScore">0</span></div>
@@ -707,7 +736,7 @@
       boardCells: [],
       hintsRemaining: 5,
       hintTimer: null,
-      isMuted: false,        // 聲音開關狀態
+      isMuted: false,
       isGameOver: false,
       isLevelEnded: false,
       reviewPages: [],
@@ -715,9 +744,6 @@
       sessionLeaderboard: []
     };
 
-    /**
-     * 音效管理器：支援一鍵靜音與強制停止機制
-     */
     const SoundManager = {
       correct: new Audio('Sounds/correct.mp3'),
       wrong: new Audio('Sounds/wrong.mp3'),
@@ -895,8 +921,8 @@
           throw new Error('題庫資料不足');
         }
 
-        hideModal();
-        startNewRun();
+        // 題庫載入完成後，先展示「僅支援 PC 或平板橫向設備遊玩」初始警語彈窗
+        showInitialDeviceWarning();
       } catch (err) {
         showErrorModal(
           '題庫載入失敗',
@@ -904,6 +930,68 @@
           '請確認檔案名稱、大小寫及資料夾路徑「CSV/」是否放置正確。'
         );
       }
+    }
+
+    /**
+     * 初始前景警語彈窗：僅支援 PC 或平板橫向設備遊玩
+     */
+    function showInitialDeviceWarning() {
+      const modalOverlay = document.getElementById('modalOverlay');
+      const modalCard = document.getElementById('modalCard');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalScores = document.getElementById('modalScores');
+      const reviewContainer = document.getElementById('reviewContainer');
+      const modalFooter = document.getElementById('modalFooter');
+      const prevPageBtn = document.getElementById('prevPageBtn');
+      const nextActionBtn = document.getElementById('nextActionBtn');
+      const pageIndicator = document.getElementById('pageIndicator');
+
+      modalCard.classList.add('initial-alert-card');
+      modalTitle.textContent = '支援設備與環境提醒';
+      modalScores.style.display = 'none';
+      reviewContainer.textContent = '';
+      modalFooter.style.display = 'flex';
+
+      prevPageBtn.style.display = 'none';
+      pageIndicator.textContent = '';
+      nextActionBtn.textContent = '我了解了，開始遊戲';
+      nextActionBtn.className = 'btn btn-success';
+
+      const alertBody = document.createElement('div');
+      alertBody.className = 'system-dialog';
+
+      const icon = document.createElement('div');
+      icon.className = 'initial-alert-icon';
+      icon.textContent = '💻 📱';
+
+      const mainNotice = document.createElement('div');
+      mainNotice.className = 'initial-alert-desc';
+      mainNotice.style.fontWeight = 'bold';
+      mainNotice.style.color = '#ff9e64';
+      mainNotice.textContent = '本遊戲僅支援 PC 或平板橫向（16:9）設備遊玩。';
+
+      const subNotice = document.createElement('div');
+      subNotice.className = 'initial-alert-desc';
+      subNotice.style.fontSize = '0.95rem';
+      subNotice.style.color = '#a9b1d6';
+      subNotice.textContent = '為確保成語棋盤網格與釋義面板之最佳視覺比例，請於橫向螢幕或桌機環境下游玩。';
+
+      alertBody.appendChild(icon);
+      alertBody.appendChild(mainNotice);
+      alertBody.appendChild(subNotice);
+      reviewContainer.appendChild(alertBody);
+
+      modalOverlay.style.display = 'flex';
+
+      // 點擊確認後關閉警語並正式啟動第一關
+      const handleAcknowledge = () => {
+        modalCard.classList.remove('initial-alert-card');
+        prevPageBtn.style.display = 'inline-block';
+        hideModal();
+        startNewRun();
+        nextActionBtn.removeEventListener('click', handleAcknowledge);
+      };
+      nextActionBtn.addEventListener('click', handleAcknowledge, { once: true });
     }
 
     function showErrorModal(title, message, instruction) {
@@ -1283,11 +1371,16 @@
 
     function showSettlementModal(title, isAllClear, isFailed) {
       const modalOverlay = document.getElementById('modalOverlay');
+      const modalCard = document.getElementById('modalCard');
       const modalTitle = document.getElementById('modalTitle');
       const modalScores = document.getElementById('modalScores');
       const modalLevelScore = document.getElementById('modalLevelScore');
       const modalTotalScore = document.getElementById('modalTotalScore');
       const modalFooter = document.getElementById('modalFooter');
+      const prevPageBtn = document.getElementById('prevPageBtn');
+
+      modalCard.classList.remove('initial-alert-card');
+      prevPageBtn.style.display = 'inline-block';
 
       modalTitle.textContent = escapeHTML(title);
       modalLevelScore.textContent = gameState.currentLevelScore.toString();
@@ -1466,10 +1559,11 @@
     }
 
     /**
-     * 顯示遊戲玩法說明彈窗
+     * 遊戲玩法說明彈窗
      */
     function showRulesModal() {
       const modalOverlay = document.getElementById('modalOverlay');
+      const modalCard = document.getElementById('modalCard');
       const modalTitle = document.getElementById('modalTitle');
       const modalScores = document.getElementById('modalScores');
       const reviewContainer = document.getElementById('reviewContainer');
@@ -1478,6 +1572,9 @@
       const nextActionBtn = document.getElementById('nextActionBtn');
       const pageIndicator = document.getElementById('pageIndicator');
 
+      modalCard.classList.remove('initial-alert-card');
+      prevPageBtn.style.display = 'inline-block';
+
       modalTitle.textContent = '遊戲玩法說明';
       modalScores.style.display = 'none';
       reviewContainer.textContent = '';
@@ -1485,19 +1582,17 @@
 
       prevPageBtn.disabled = true;
       pageIndicator.textContent = '成語串聯規則指南';
-      nextActionBtn.textContent = '關閉 / 開始遊戲';
+      nextActionBtn.textContent = '關閉說明';
       nextActionBtn.className = 'btn btn-success';
 
       const rulesBody = document.createElement('div');
       rulesBody.className = 'rules-body';
 
-      // 支援設備重要提示
       const alertBox = document.createElement('div');
       alertBox.className = 'rule-badge';
       alertBox.textContent = '⚠️ 平台支援提醒：本遊戲僅支援 PC 或平板橫向（16:9）設備遊玩。';
       rulesBody.appendChild(alertBox);
 
-      // 說明章節
       const sections = [
         {
           title: '一、 核心玩法',
@@ -1532,7 +1627,6 @@
       reviewContainer.appendChild(rulesBody);
       modalOverlay.style.display = 'flex';
 
-      // 單次覆寫關閉邏輯
       const handleCloseRules = () => {
         hideModal();
         nextActionBtn.removeEventListener('click', handleCloseRules);
