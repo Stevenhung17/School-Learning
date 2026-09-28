@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <!-- 嚴格安全標頭設定 -->
+  <!-- 嚴格安全性標頭 (Strict CSP) -->
   <meta http-equiv="Content-Security-Policy"
         content="
           default-src 'self';
@@ -23,7 +23,7 @@
   <title>成語啵啵 (Idiom Pop)</title>
   <style>
     /* ============================================================
-       全域基礎重置與 16:9 橫向排版容器
+       全域基礎重置與 16:9 容器配置
        ============================================================ */
     * {
       box-sizing: border-box;
@@ -44,30 +44,30 @@
       overflow: hidden;
     }
 
-    /* 16:9 主容器：居中適配 PC 與橫向平板 */
+    /* 16:9 主容器 */
     #game-container {
       position: relative;
       width: 96vw;
-      height: 54vw; /* 16:9 高度 */
+      height: 54vw;
       max-height: 94vh;
-      max-width: 167.11vh; /* 94 * 16 / 9 */
+      max-width: 167.11vh;
       aspect-ratio: 16 / 9;
       background: #1e293b;
       display: flex;
-      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
       border-radius: 12px;
       overflow: hidden;
       border: 1px solid #334155;
     }
 
     /* ============================================================
-       左側遊戲畫布面板 (50% 寬度)
+       左側物理畫布面板
        ============================================================ */
     #stage-panel {
       position: relative;
       flex: 1;
       height: 100%;
-      background: radial-gradient(circle at 50% 30%, #1e293b 0%, #0f172a 100%);
+      background: radial-gradient(circle at 50% 30%, #1e293b 0%, #090d16 100%);
       border-right: 2px solid #334155;
       overflow: hidden;
     }
@@ -76,11 +76,10 @@
       display: block;
       width: 100%;
       height: 100%;
-      object-fit: contain;
     }
 
     /* ============================================================
-       右側資訊與答題面板 (50% 寬度)
+       右側資訊與答題面板
        ============================================================ */
     #info-panel {
       flex: 1;
@@ -93,7 +92,7 @@
       overflow: hidden;
     }
 
-    /* 系統資訊列 */
+    /* 頂部系統列 */
     .system-header {
       display: flex;
       justify-content: space-between;
@@ -133,7 +132,7 @@
 
     .stat-badge strong {
       color: #fbbf24;
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       margin-left: 3px;
     }
 
@@ -189,7 +188,7 @@
       transition: width 0.2s ease-out;
     }
 
-    /* 題目區塊 */
+    /* 題目區塊：字體調升為與選項相同的 1.35rem */
     .question-card {
       background: #0f172a;
       border: 1px solid #334155;
@@ -217,13 +216,14 @@
     }
 
     .question-content {
-      font-size: 1.1rem;
+      font-size: 1.35rem; /* 與下方選項字體一致 */
       line-height: 1.55;
       color: #e2e8f0;
-      font-weight: 500;
+      font-weight: 600;
+      letter-spacing: 0.5px;
     }
 
-    /* 選項區 (2x2 格線排列) */
+    /* 選項區 (2x2 排列) */
     .options-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -261,13 +261,13 @@
       background: #334155 !important;
       border-color: #475569 !important;
       cursor: not-allowed;
-      opacity: 0.4;
+      opacity: 0.35;
       transform: none !important;
       box-shadow: none !important;
     }
 
     .option-idiom {
-      font-size: 1.35rem;
+      font-size: 1.35rem; /* 成語文字大小 */
       font-weight: 800;
       color: #f8fafc;
       letter-spacing: 2px;
@@ -295,7 +295,7 @@
     }
 
     /* ============================================================
-       彈出視窗與互動遮罩層 (Modals)
+       彈出視窗 (Modal)
        ============================================================ */
     .modal-overlay {
       position: absolute;
@@ -303,7 +303,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(11, 17, 32, 0.9);
+      background: rgba(11, 17, 32, 0.92);
       backdrop-filter: blur(5px);
       display: flex;
       justify-content: center;
@@ -316,9 +316,9 @@
       border: 1px solid #475569;
       border-radius: 12px;
       padding: 22px 26px;
-      max-width: 460px;
-      width: 88%;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      max-width: 520px;
+      width: 90%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
       text-align: center;
     }
 
@@ -340,7 +340,7 @@
       background: #0284c7;
       color: #ffffff;
       border: none;
-      padding: 9px 22px;
+      padding: 10px 24px;
       border-radius: 6px;
       font-size: 1rem;
       font-weight: bold;
@@ -348,12 +348,18 @@
       transition: background 0.15s, transform 0.05s;
     }
 
-    .primary-btn:hover {
+    .primary-btn:hover:not(:disabled) {
       background: #0369a1;
     }
 
-    .primary-btn:active {
+    .primary-btn:active:not(:disabled) {
       transform: scale(0.97);
+    }
+
+    .primary-btn:disabled {
+      background: #475569;
+      cursor: wait;
+      opacity: 0.7;
     }
 
     /* 排行榜表格 */
@@ -367,12 +373,12 @@
     .rank-table th {
       background: #0f172a;
       color: #94a3b8;
-      padding: 6px;
+      padding: 7px 4px;
       border-bottom: 2px solid #334155;
     }
 
     .rank-table td {
-      padding: 6px;
+      padding: 7px 4px;
       border-bottom: 1px solid #334155;
       color: #f8fafc;
     }
@@ -402,7 +408,7 @@
 <body>
 
   <div id="game-container">
-    <!-- ==================== 左半部：遊戲畫布 ==================== -->
+    <!-- ==================== 左半部：遊戲物理畫布 ==================== -->
     <div id="stage-panel">
       <canvas id="game-canvas" width="600" height="675"></canvas>
     </div>
@@ -426,7 +432,7 @@
       <!-- 連續 Combo 數與進度條 -->
       <div class="combo-section">
         <div class="combo-info">
-          <span id="combo-text">連續 Combo: 0 次</span>
+          <span id="combo-text">連續 Combo: 0 次 (最高: 0)</span>
           <span id="combo-bullet-award">下一級連射: 0/5 (當前: 1發)</span>
         </div>
         <div class="combo-bar-bg" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="5">
@@ -437,13 +443,11 @@
       <!-- 題目顯示區 -->
       <div class="question-card">
         <div class="question-tag">用法說明 - 語義說明</div>
-        <div id="question-text" class="question-content">載入成語題庫中，請稍候...</div>
+        <div id="question-text" class="question-content">題庫載入中，請稍候...</div>
       </div>
 
-      <!-- 選項區 (2x2 格線排列) -->
-      <div id="options-container" class="options-grid">
-        <!-- 動態掛載 4 個按鈕 -->
-      </div>
+      <!-- 選項區 (2x2 格線) -->
+      <div id="options-container" class="options-grid"></div>
 
       <!-- 中華民國教育部版權宣告 -->
       <footer class="footer-license">
@@ -452,19 +456,19 @@
       </footer>
     </div>
 
-    <!-- ==================== 彈出視窗模組 ==================== -->
+    <!-- ==================== 前景提示與彈窗模組 ==================== -->
 
-    <!-- 前景提示視窗 (橫向設備警語) -->
+    <!-- 前景提示視窗 -->
     <div id="modal-welcome" class="modal-overlay">
       <div class="modal-card">
         <h2>歡迎來到成語啵啵！</h2>
         <p>⚠️ <strong>設備警語</strong>：本遊戲<strong>僅支援 PC 或平板橫向設備遊玩</strong>。<br><br>
         🎯 <strong>遊戲玩法要點</strong>：<br>
-        1. 根據右側成語「語義說明」，點選正確的成語選項。<br>
-        2. 答對時砲台將射擊消除泡泡，答錯將處罰額外噴出一顆泡泡！<br>
-        3. 每累積 5 次 Combo 可加射 1 枚砲彈，消除上方泡泡會帶動下方懸空泡泡重新向上飄！<br>
-        4. 當泡泡堆積觸及底部警戒線時，遊戲即告結束。</p>
-        <button id="btn-start-game" class="primary-btn" type="button">開始體驗</button>
+        1. 根據右側「語義說明」，點選正確的成語選項。<br>
+        2. 答對時砲台將射擊消除泡泡；答錯時處罰立即額外吐出泡泡！<br>
+        3. 每累積 5 次 Combo 可加射 1 枚砲彈（最大上限 5 發）。<br>
+        4. 泡泡碰撞完全非彈性，在頂端柔順貼合堆疊；觸及底部警戒線時遊戲結束。</p>
+        <button id="btn-start-game" class="primary-btn" type="button" disabled>題庫載入中...</button>
       </div>
     </div>
 
@@ -473,10 +477,10 @@
       <div class="modal-card">
         <h2>遊戲規則詳細說明</h2>
         <p>
-          • <strong>難度升級</strong>：每經過 1 分鐘，泡泡上飄速度與生成頻率自動提升一級。<br>
-          • <strong>蜂巢吸附與連鎖浮起</strong>：泡泡碰到天花板或卡死會排入蜂巢結構。若消除關鍵泡泡造成下方懸空，浮空泡泡將<strong>重新往上飄</strong>尋找新著力點！<br>
-          • <strong>Combo 多重連射</strong>：每累積 5 Combo，答對額外加射 1 枚砲彈（5 Combo 射 2 枚、10 Combo 射 3 枚，依此類推）。<br>
-          • <strong>答錯機制</strong>：Combo 歸零，點擊之錯誤選項反灰停用，並立即額外吐出 1 顆泡泡。
+          • <strong>難度升級節奏</strong>：初始每 300 幀生成泡泡，每過 1 分鐘減少 50 幀，最低遞減至 50 幀極限節奏！<br>
+          • <strong>非彈性物理堆疊</strong>：泡泡受浮力向上推擠，碰撞零反彈、柔順貼合。消除關鍵泡泡時，其餘泡泡自然向上流動填補。<br>
+          • <strong>Combo 多重連射上限</strong>：每累積 5 Combo 加射 1 枚砲彈，<strong>最大彈藥數上限為 5 發</strong>。<br>
+          • <strong>排行榜榮譽登錄</strong>：本局排行榜會完整記錄玩家的最高得分與<strong>最大連擊數 (Max Combo)</strong>。
         </p>
         <button id="btn-close-help" class="primary-btn" type="button">返回遊戲</button>
       </div>
@@ -486,45 +490,45 @@
     <div id="modal-pause" class="modal-overlay hidden">
       <div class="modal-card">
         <h2>遊戲暫停中</h2>
-        <p>休息片刻，準備好後點擊按鈕即可繼續作答！</p>
+        <p>休息片刻，準備好後點擊按鈕即可繼續挑戰！</p>
         <button id="btn-resume-game" class="primary-btn" type="button">繼續遊戲</button>
       </div>
     </div>
 
-    <!-- 結算與輸入暱稱視窗 -->
+    <!-- 遊戲結束輸入暱稱視窗 -->
     <div id="modal-gameover" class="modal-overlay hidden">
       <div class="modal-card">
         <h2 style="color: #f43f5e;">遊戲結束！</h2>
-        <p style="text-align: center;">泡泡堆積觸底！請留下您的榮譽紀錄：</p>
-        <p style="text-align: center; font-size: 1.05rem; color: #fbbf24; margin-bottom: 12px;">
-          最終得分：<span id="final-score">0</span> 分 | 存活時間：<span id="final-time">0</span> 秒
+        <p style="text-align: center;">泡泡堆積觸及死亡警戒線！請留下您的榮譽紀錄：</p>
+        <p style="text-align: center; font-size: 1.05rem; color: #fbbf24; margin-bottom: 12px; line-height: 1.6;">
+          最終得分：<span id="final-score">0</span> 分<br>
+          最高連擊：<span id="final-combo" style="color: #f43f5e;">0</span> 次 | 存活時間：<span id="final-time">0</span> 秒
         </p>
-        <div id="nickname-form-group">
-          <input type="text" id="player-nickname" class="rank-input" maxlength="12" placeholder="請輸入暱稱 (最多12字)" autocomplete="off">
+        <div>
+          <input type="text" id="player-nickname" class="rank-input" maxlength="12" placeholder="請輸入玩家暱稱 (最多12字)" autocomplete="off">
           <br>
           <button id="btn-submit-score" class="primary-btn" type="button">登記排行榜</button>
         </div>
       </div>
     </div>
 
-    <!-- 本局排行榜視窗 (純記憶體儲存) -->
+    <!-- 本局純記憶體排行榜視窗 -->
     <div id="modal-leaderboard" class="modal-overlay hidden">
       <div class="modal-card">
         <h2>🏆 本局排行榜</h2>
-        <p style="font-size: 0.78rem; color: #94a3b8; text-align: center;">（記錄於執行期記憶體變數，關閉或重新整理分頁自動清除）</p>
+        <p style="font-size: 0.78rem; color: #94a3b8; text-align: center;">（記錄於執行期記憶體變數，關閉分頁自動清除）</p>
         <table class="rank-table">
           <thead>
             <tr>
               <th>名次</th>
               <th>暱稱</th>
               <th>得分</th>
+              <th>最高Combo</th>
               <th>存活</th>
               <th>答對</th>
             </tr>
           </thead>
-          <tbody id="leaderboard-tbody">
-            <!-- 動態插入榜單資料 -->
-          </tbody>
+          <tbody id="leaderboard-tbody"></tbody>
         </table>
         <button id="btn-restart-game" class="primary-btn" type="button">重新開始</button>
       </div>
@@ -535,7 +539,7 @@
     'use strict';
 
     /* ============================================================
-       一、資安工具函式：嚴格跳脫與輸入防護
+       一、資安工具函式：跳脫與防護 (XSS Mitigation)
        ============================================================ */
     function escapeHTML(str) {
       if (typeof str !== 'string') return '';
@@ -554,7 +558,7 @@
     }
 
     /* ============================================================
-       二、原生 Web Audio API 音效合成引擎 (無外部檔案依賴)
+       二、原生 Web Audio API 音效引擎
        ============================================================ */
     class SoundEngine {
       constructor() {
@@ -585,9 +589,9 @@
         const gain = this.ctx.createGain();
         osc.type = 'sine';
         const now = this.ctx.currentTime;
-        osc.frequency.setValueAtTime(180, now);
-        osc.frequency.exponentialRampToValueAtTime(650, now + 0.08);
-        gain.gain.setValueAtTime(0.3, now);
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(750, now + 0.08);
+        gain.gain.setValueAtTime(0.28, now);
         gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
@@ -601,8 +605,8 @@
         const gain = this.ctx.createGain();
         osc.type = 'triangle';
         const now = this.ctx.currentTime;
-        osc.frequency.setValueAtTime(550, now);
-        osc.frequency.exponentialRampToValueAtTime(1100, now + 0.12);
+        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.exponentialRampToValueAtTime(1150, now + 0.12);
         gain.gain.setValueAtTime(0.25, now);
         gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
         osc.connect(gain);
@@ -618,18 +622,18 @@
         osc.type = 'sawtooth';
         const now = this.ctx.currentTime;
         osc.frequency.setValueAtTime(130, now);
-        osc.frequency.linearRampToValueAtTime(65, now + 0.22);
+        osc.frequency.linearRampToValueAtTime(65, now + 0.2);
         gain.gain.setValueAtTime(0.25, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.22);
+        osc.stop(now + 0.2);
       }
 
       playComboMilestone() {
         if (this.isMuted || !this.ctx) return;
-        const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+        const notes = [523.25, 659.25, 783.99];
         notes.forEach((freq, idx) => {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
@@ -649,49 +653,30 @@
     const sound = new SoundEngine();
 
     /* ============================================================
-       三、備援題庫 (在直接以 file:// 開啟被瀏覽器 CORS 阻擋時無縫平滑啟動)
-       ============================================================ */
-    const SEED_IDIOMS = [
-      { idiom: "一毛不拔", zhuyin: "ㄧ ㄇㄠˊ ㄅㄨˋ ㄅㄚˊ", definition: "形容人非常吝嗇。貶義。" },
-      { idiom: "掩耳盜鈴", zhuyin: "ㄧㄢˇ ㄦˇ ㄉㄠˋ ㄌㄧㄥˊ", definition: "比喻妄想瞞騙他人，結果只是欺騙自己而已。貶義。" },
-      { idiom: "一丘之貉", zhuyin: "ㄧ ㄑㄧㄡ ㄓ ㄏㄜˊ", definition: "比喻彼此同樣低劣，並無差異。貶義。" },
-      { idiom: "守株待兔", zhuyin: "ㄕㄡˇ ㄓㄨ ㄉㄞˋ ㄊㄨˋ", definition: "比喻妄想不勞而獲，或不知變通而拘泥固執。" },
-      { idiom: "畫蛇添足", zhuyin: "ㄏㄨㄚˋ ㄕㄜˊ ㄊㄧㄢ ㄗㄨˊ", definition: "比喻做多餘的事，反而把事情弄壞。" },
-      { idiom: "亡羊補牢", zhuyin: "ㄨㄤˊ ㄧㄤˊ ㄅㄨˇ ㄌㄠˊ", definition: "比喻犯錯或受挫後立即補救，還來得及避免擴大損害。" },
-      { idiom: "狐假虎威", zhuyin: "ㄏㄨˊ ㄐㄧㄚˇ ㄏㄨˇ ㄨㄟ", definition: "比喻藉著有權勢者的威光來欺壓他人。" },
-      { idiom: "井底之蛙", zhuyin: "ㄐㄧㄥˇ ㄉㄧˇ ㄓ ㄨㄚ", definition: "比喻見識淺薄且自以為是的人。" },
-      { idiom: "臥薪嘗膽", zhuyin: "ㄨㄛˋ ㄒㄧㄣ ㄔㄤˊ ㄉㄢˇ", definition: "比喻刻苦自勵，奮發圖強以雪恥復國。" },
-      { idiom: "飲鴆止渴", zhuyin: "ㄧㄣˇ ㄓㄣˋ ㄓˇ ㄎㄜˇ", definition: "比喻只顧眼前利益，而不顧嚴重的後果。" },
-      { idiom: "杯弓蛇影", zhuyin: "ㄅㄟ ㄍㄨㄥ ㄕㄜˊ ㄧㄥˇ", definition: "比喻因疑神疑鬼而引起無謂的驚恐自擾。" },
-      { idiom: "完璧歸趙", zhuyin: "ㄨㄢˊ ㄅㄧˋ ㄍㄨㄟ ㄓㄠˋ", definition: "比喻物歸原主，完好無損。" },
-      { idiom: "望梅止渴", zhuyin: "ㄨㄤˋ ㄇㄟˊ ㄓˇ ㄎㄜˇ", definition: "比喻以空想來撫慰心中的渴望。" },
-      { idiom: "四面楚歌", zhuyin: "ㄙˋ ㄇㄧㄢˋ ㄔㄨˇ ㄍㄜ", definition: "比喻陷入四面受敵、孤立無援的困境。" },
-      { idiom: "破釜沉舟", zhuyin: "ㄆㄛˋ ㄈㄨˇ ㄔㄣˊ ㄓㄡ", definition: "比喻下定決心，不留退路，非打贏不可。" },
-      { idiom: "胸有成竹", zhuyin: "ㄒㄩㄥ ㄧㄡˇ ㄔㄥˊ ㄓㄨˊ", definition: "比喻處事之前早已胸有成算，十分篤定。" }
-    ];
-
-    /* ============================================================
-       四、全域遊戲常數與狀態實體
+       三、遊戲配置與 2D 物理世界參數
        ============================================================ */
     const GAME_CONFIG = {
       canvasWidth: 600,
       canvasHeight: 675,
-      bubbleRadius: 26,
-      colsEven: 10,
-      colsOdd: 9,
-      maxRows: 12,
-      dangerRowY: 575,
+      bubbleRadius: 26, // 泡泡半徑統一為最大 26px (直徑 52px)
+      dangerRowY: 530,  // 死亡警戒線
       colors: [
         { main: '#38bdf8', light: '#bae6fd', stroke: '#0284c7' }, // 碧藍
         { main: '#f43f5e', light: '#fecdd3', stroke: '#e11d48' }, // 櫻桃紅
-        { main: '#34d399', light: '#a7f3d0', stroke: '#059669' }, // 翠綠
+        { main: '#34d399', light: '#a7f3d0', stroke: '#059669' }, // 翡翠綠
         { main: '#fbbf24', light: '#fef3c7', stroke: '#d97706' }, // 金黃
-        { main: '#a855f7', light: '#f3e8ff', stroke: '#7e22ce' }, // 炫紫
+        { main: '#a855f7', light: '#f3e8ff', stroke: '#7e22ce' }, // 紫羅蘭
         { main: '#fb923c', light: '#ffedd5', stroke: '#ea580c' }  // 橘橙
       ]
     };
 
-    const HEX_ROW_HEIGHT = GAME_CONFIG.bubbleRadius * Math.sqrt(3);
+    // 完全非彈性碰撞物理參數[cite: 2]
+    const physicsWorld = {
+      buoyancy: -220,     // 向上浮力加速度 px/s²[cite: 2]
+      restitution: 0.0,   // 彈性設定為 0 (完全零反彈)[cite: 2]
+      airDrag: 0.035,     // 空氣阻力係數[cite: 2]
+      substeps: 4         // 子步進提升堆疊穩定度[cite: 2]
+    };
 
     let idiomDatabase = [];
     let isGameRunning = false;
@@ -700,33 +685,33 @@
     let gameLevel = 1;
     let currentScore = 0;
     let currentCombo = 0;
+    let maxCombo = 0;       // 本局最高連擊數統計
     let correctCount = 0;
 
+    // 初始生成間隔 300 幀 (~5.0 秒)
     let spawnTimer = 0;
-    let spawnInterval = 200; // 初始間隔 frames (~3.3秒)
-    let baseBubbleSpeed = 1.5;
+    let spawnInterval = 300;
 
-    let gridBubbles = [];
-    let floatingBubbles = [];
+    let bubbles = [];
     let bullets = [];
     let particles = [];
 
     // 砲台狀態
     const cannon = {
       x: GAME_CONFIG.canvasWidth / 2,
-      y: 635,
-      width: 72,
-      height: 24,
+      y: 615,
+      width: 84,
+      height: 30,
       direction: 1,
-      speed: 2.4
+      speed: 2.2
     };
 
-    // 本局純記憶體排行榜 (關閉分頁自動清除)
+    // 本局純記憶體排行榜
     const leaderboardState = [];
     let currentQuestion = null;
 
     /* ============================================================
-       五、安全 CSV 解析管道 (RFC 4180)
+       四、CSV 解析與動態題庫載入 (100% CSV，無備援庫)
        ============================================================ */
     function parseCSV(text) {
       const rows = [];
@@ -766,237 +751,186 @@
     }
 
     async function loadIdiomDataset() {
-      try {
-        const response = await fetch('./CSV/dict_idioms_2020_20260625_UTF8.csv', {
-          credentials: 'same-origin'
-        });
-        if (!response.ok) throw new Error('File fetch failed');
-        const csvText = await response.text();
-        const records = parseCSV(csvText);
+      const startBtn = document.getElementById('btn-start-game');
+      const qText = document.getElementById('question-text');
 
-        const loaded = [];
-        for (let i = 1; i < records.length; i++) {
-          const r = records[i];
-          if (r.length >= 4) {
-            const idiom = (r[1] || '').trim();
-            let zhuyin = (r[2] || '').trim();
-            // 擷取主要注音部分，簡化括弧說明
-            if (zhuyin.includes('（變）')) {
-              zhuyin = zhuyin.split('（變）')[0].trim();
-            }
-            const definition = (r[3] || '').trim();
+      const targetPaths = [
+        './CSV/dict_idioms_2020_20260625_UTF8.csv',
+        './csv/dict_idioms_2020_20260625_UTF8.csv',
+        'CSV/dict_idioms_2020_20260625_UTF8.csv'
+      ];
 
-            if (idiom.length === 4 && definition.length > 0) {
-              loaded.push({ idiom, zhuyin, definition });
-            }
+      let csvText = null;
+      for (const p of targetPaths) {
+        try {
+          const resp = await fetch(p, { credentials: 'same-origin' });
+          if (resp.ok) {
+            csvText = await resp.text();
+            break;
+          }
+        } catch (e) {
+          // 嘗試下一個路徑
+        }
+      }
+
+      if (!csvText) {
+        qText.textContent = '❌ 無法載入成語題庫！請確認 CSV/dict_idioms_2020_20260625_UTF8.csv 檔案路徑。';
+        startBtn.textContent = '題庫載入失敗';
+        return;
+      }
+
+      const records = parseCSV(csvText);
+      const loaded = [];
+
+      for (let i = 1; i < records.length; i++) {
+        const r = records[i];
+        if (r.length >= 4) {
+          const idiom = (r[1] || '').trim();
+          let zhuyin = (r[2] || '').trim();
+          if (zhuyin.includes('（變）')) {
+            zhuyin = zhuyin.split('（變）')[0].trim();
+          }
+          const definition = (r[3] || '').trim();
+
+          if (idiom.length === 4 && definition.length > 0) {
+            loaded.push({ idiom, zhuyin, definition });
           }
         }
-
-        if (loaded.length > 0) {
-          idiomDatabase = loaded;
-        } else {
-          idiomDatabase = SEED_IDIOMS;
-        }
-      } catch (err) {
-        // 若受限於本地 file:// CORS 政策，使用種子題庫備援
-        idiomDatabase = SEED_IDIOMS;
       }
+
+      idiomDatabase = loaded;
+      qText.textContent = `成語題庫已備妥 (共 ${loaded.length} 題)。請點擊開始遊戲！`;
+      startBtn.textContent = `開始遊戲 (已載入 ${loaded.length} 題)`;
+      startBtn.disabled = false;
     }
 
     /* ============================================================
-       六、蜂巢網格初始化與座標計算
+       五、2D 物理碰撞引擎 (零反彈實作)
        ============================================================ */
-    function initHexGrid() {
-      gridBubbles = [];
-      for (let r = 0; r < GAME_CONFIG.maxRows; r++) {
-        const cols = (r % 2 === 0) ? GAME_CONFIG.colsEven : GAME_CONFIG.colsOdd;
-        gridBubbles.push(new Array(cols).fill(null));
-      }
-    }
-
-    function getGridCenter(row, col) {
-      const R = GAME_CONFIG.bubbleRadius;
-      const isOdd = (row % 2 !== 0);
-      const totalRowWidth = (GAME_CONFIG.colsEven * 2) * R;
-      const startOffset = (GAME_CONFIG.canvasWidth - totalRowWidth) / 2;
-      const startX = isOdd ? (startOffset + R * 2) : (startOffset + R);
-      const x = startX + col * (R * 2);
-      const y = R + row * HEX_ROW_HEIGHT;
-      return { x, y };
-    }
-
-    function createBubbleEntity(x, y, radius, colorIdx = -1) {
-      const cIndex = (colorIdx >= 0) ? colorIdx : Math.floor(Math.random() * GAME_CONFIG.colors.length);
-      return {
-        x: x,
-        y: y,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: -(baseBubbleSpeed + (gameLevel - 1) * 0.35),
-        radius: radius,
-        colorIndex: cIndex,
-        state: 'floating' // 'floating' | 'pinned'
-      };
+    function randRange(min, max) {
+      return min + Math.random() * (max - min);
     }
 
     function emitBubbleFromCannon() {
-      const R = GAME_CONFIG.bubbleRadius;
-      const actualR = R - 2 + Math.random() * 4;
-      const b = createBubbleEntity(cannon.x, cannon.y - 12, actualR);
-      floatingBubbles.push(b);
+      const r = GAME_CONFIG.bubbleRadius;
+      const colorIndex = Math.floor(Math.random() * GAME_CONFIG.colors.length);
+
+      const speed = randRange(80, 140);
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.45;
+
+      bubbles.push({
+        x: cannon.x,
+        y: cannon.y - 18,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        r: r,
+        m: r * r,
+        colorIndex: colorIndex,
+        hasEnteredZone: false,
+        settledTimer: 0
+      });
+
       sound.playPop();
     }
 
-    function getHexNeighbors(r, c) {
-      const neighbors = [];
-      const isOdd = (r % 2 !== 0);
+    function solveWallCollisions(b) {
+      const W = GAME_CONFIG.canvasWidth;
+      const e = physicsWorld.restitution;
 
-      neighbors.push({ r: r, c: c - 1 }, { r: r, c: c + 1 });
-      if (isOdd) {
-        neighbors.push({ r: r - 1, c: c }, { r: r - 1, c: c + 1 });
-        neighbors.push({ r: r + 1, c: c }, { r: r + 1, c: c + 1 });
-      } else {
-        neighbors.push({ r: r - 1, c: c - 1 }, { r: r - 1, c: c });
-        neighbors.push({ r: r + 1, c: c - 1 }, { r: r + 1, c: c });
+      if (b.x - b.r < 0) {
+        b.x = b.r;
+        b.vx = Math.abs(b.vx) * e;
       }
-
-      return neighbors.filter(n => {
-        if (n.r < 0 || n.r >= GAME_CONFIG.maxRows) return false;
-        const maxC = (n.r % 2 === 0) ? GAME_CONFIG.colsEven : GAME_CONFIG.colsOdd;
-        return n.c >= 0 && n.c < maxC;
-      });
+      if (b.x + b.r > W) {
+        b.x = W - b.r;
+        b.vx = -Math.abs(b.vx) * e;
+      }
+      if (b.y - b.r < 0) {
+        b.y = b.r;
+        b.vy = Math.abs(b.vy) * e;
+        b.vx *= 0.94; // 天花板滑移摩擦[cite: 2]
+      }
     }
 
-    function snapBubbleToGrid(bubble) {
-      let bestDist = Infinity;
-      let targetRow = -1;
-      let targetCol = -1;
+    function solveBallBallCollision(a, b) {
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const rSum = a.r + b.r;
+      const d2 = dx * dx + dy * dy;
 
-      for (let r = 0; r < GAME_CONFIG.maxRows; r++) {
-        const cols = (r % 2 === 0) ? GAME_CONFIG.colsEven : GAME_CONFIG.colsOdd;
-        for (let c = 0; c < cols; c++) {
-          if (!gridBubbles[r][c]) {
-            let canAttach = (r === 0);
-            if (!canAttach) {
-              const neighbors = getHexNeighbors(r, c);
-              for (const n of neighbors) {
-                if (gridBubbles[n.r] && gridBubbles[n.r][n.c]) {
-                  canAttach = true;
-                  break;
-                }
-              }
-            }
+      if (d2 >= rSum * rSum || d2 === 0) return;
 
-            if (canAttach) {
-              const center = getGridCenter(r, c);
-              const dist = Math.hypot(bubble.x - center.x, bubble.y - center.y);
-              if (dist < bestDist) {
-                bestDist = dist;
-                targetRow = r;
-                targetCol = c;
-              }
-            }
-          }
-        }
-      }
+      const d = Math.sqrt(d2);
+      const nx = dx / d;
+      const ny = dy / d;
 
-      if (targetRow !== -1 && targetCol !== -1) {
-        const center = getGridCenter(targetRow, targetCol);
-        bubble.x = center.x;
-        bubble.y = center.y;
-        bubble.radius = GAME_CONFIG.bubbleRadius;
-        bubble.state = 'pinned';
-        gridBubbles[targetRow][targetCol] = bubble;
+      const overlap = rSum - d;
+      const invMa = 1 / a.m;
+      const invMb = 1 / b.m;
+      const sumInvM = invMa + invMb;
 
-        // 當泡泡卡死定位時，下一個泡泡即刻吐出
-        spawnTimer = spawnInterval;
-        return true;
-      }
-      return false;
+      a.x -= nx * overlap * (invMa / sumInvM);
+      a.y -= ny * overlap * (invMa / sumInvM);
+      b.x += nx * overlap * (invMb / sumInvM);
+      b.y += ny * overlap * (invMb / sumInvM);
+
+      const rvx = b.vx - a.vx;
+      const rvy = b.vy - a.vy;
+      const velAlongNormal = rvx * nx + rvy * ny;
+
+      if (velAlongNormal > 0) return;
+
+      const e = physicsWorld.restitution;
+      const impulse = -(1 + e) * velAlongNormal / sumInvM;
+      const ix = impulse * nx;
+      const iy = impulse * ny;
+
+      a.vx -= ix * invMa;
+      a.vy -= iy * invMa;
+      b.vx += ix * invMb;
+      b.vy += iy * invMb;
     }
 
-    /* ============================================================
-       七、BFS 拓撲檢驗：懸空泡泡重新向上飄
-       ============================================================ */
-    function checkUnanchoredBubblesAndRefloat() {
-      const visited = [];
-      for (let r = 0; r < GAME_CONFIG.maxRows; r++) {
-        const cols = (r % 2 === 0) ? GAME_CONFIG.colsEven : GAME_CONFIG.colsOdd;
-        visited.push(new Array(cols).fill(false));
-      }
-
-      const queue = [];
-
-      // 以天花板 (Row 0) 所有現存泡泡為錨定起點
-      for (let c = 0; c < GAME_CONFIG.colsEven; c++) {
-        if (gridBubbles[0][c]) {
-          visited[0][c] = true;
-          queue.push({ r: 0, c: c });
+    function checkGameOverConditions() {
+      for (const b of bubbles) {
+        if (b.hasEnteredZone && (b.y + b.r >= GAME_CONFIG.dangerRowY)) {
+          triggerGameOver();
+          return;
         }
       }
+    }
 
-      // 廣度優先搜尋所有能間接錨定於頂端的泡泡
-      while (queue.length > 0) {
-        const curr = queue.shift();
-        const neighbors = getHexNeighbors(curr.r, curr.c);
-        for (const n of neighbors) {
-          if (gridBubbles[n.r] && gridBubbles[n.r][n.c] && !visited[n.r][n.c]) {
-            visited[n.r][n.c] = true;
-            queue.push(n);
-          }
-        }
-      }
-
-      // 未被造訪者即為失去支撐的泡泡，脫離網格並重新往上飄
-      for (let r = 0; r < GAME_CONFIG.maxRows; r++) {
-        const cols = (r % 2 === 0) ? GAME_CONFIG.colsEven : GAME_CONFIG.colsOdd;
-        for (let c = 0; c < cols; c++) {
-          const b = gridBubbles[r][c];
-          if (b && !visited[r][c]) {
-            gridBubbles[r][c] = null;
-            b.state = 'floating';
-            // 賦予向上的反重力加速度
-            b.vy = -(baseBubbleSpeed + (gameLevel - 1) * 0.3) * (0.8 + Math.random() * 0.4);
-            b.vx = (Math.random() - 0.5) * 0.7;
-            floatingBubbles.push(b);
-          }
-        }
-      }
+    function triggerGameOver() {
+      isGameRunning = false;
+      document.getElementById('final-score').textContent = currentScore;
+      document.getElementById('final-combo').textContent = maxCombo;
+      document.getElementById('final-time').textContent = gameTimeSeconds;
+      document.getElementById('modal-gameover').classList.remove('hidden');
     }
 
     /* ============================================================
-       八、射擊、消除與連鎖演出
+       六、射擊、消除與 Combo 彈藥上限 (最大 5 發)
        ============================================================ */
     function fireCannonProjectiles(count) {
       for (let i = 0; i < count; i++) {
         setTimeout(() => {
           if (!isGameRunning || isPaused) return;
 
-          // 優先尋標：正在向上漂浮的泡泡
           let target = null;
-          if (floatingBubbles.length > 0) {
-            target = floatingBubbles[Math.floor(Math.random() * floatingBubbles.length)];
-          } else {
-            // 無漂浮泡泡時，隨機選定已卡死的網格泡泡
-            const pinnedList = [];
-            for (let r = 0; r < GAME_CONFIG.maxRows; r++) {
-              const cols = (r % 2 === 0) ? GAME_CONFIG.colsEven : GAME_CONFIG.colsOdd;
-              for (let c = 0; c < cols; c++) {
-                if (gridBubbles[r][c]) {
-                  pinnedList.push(gridBubbles[r][c]);
-                }
-              }
-            }
-            if (pinnedList.length > 0) {
-              target = pinnedList[Math.floor(Math.random() * pinnedList.length)];
-            }
+          const activeBubbles = bubbles.filter(b => Math.abs(b.vy) > 15 || b.y > 150);
+
+          if (activeBubbles.length > 0) {
+            target = activeBubbles[Math.floor(Math.random() * activeBubbles.length)];
+          } else if (bubbles.length > 0) {
+            target = bubbles[Math.floor(Math.random() * bubbles.length)];
           }
 
           if (target) {
             bullets.push({
               x: cannon.x,
-              y: cannon.y - 12,
+              y: cannon.y - 14,
               target: target,
-              speed: 13
+              speed: 15
             });
             sound.playShoot();
           }
@@ -1025,32 +959,14 @@
       const colorScheme = GAME_CONFIG.colors[bubble.colorIndex] || GAME_CONFIG.colors[0];
       createExplosion(bubble.x, bubble.y, colorScheme);
 
-      let wasInGrid = false;
-      for (let r = 0; r < GAME_CONFIG.maxRows; r++) {
-        const cols = (r % 2 === 0) ? GAME_CONFIG.colsEven : GAME_CONFIG.colsOdd;
-        for (let c = 0; c < cols; c++) {
-          if (gridBubbles[r][c] === bubble) {
-            gridBubbles[r][c] = null;
-            wasInGrid = true;
-            break;
-          }
-        }
-        if (wasInGrid) break;
-      }
-
-      const floatIdx = floatingBubbles.indexOf(bubble);
-      if (floatIdx !== -1) {
-        floatingBubbles.splice(floatIdx, 1);
-      }
-
-      // 若擊破固定泡泡，執行拓撲檢驗觸發懸空泡泡往上飄
-      if (wasInGrid) {
-        checkUnanchoredBubblesAndRefloat();
+      const idx = bubbles.indexOf(bubble);
+      if (idx !== -1) {
+        bubbles.splice(idx, 1);
       }
     }
 
     /* ============================================================
-       九、題目抽取與問答互動
+       七、題目抽選與問答互動
        ============================================================ */
     function pickNextQuestion() {
       if (idiomDatabase.length === 0) return;
@@ -1110,138 +1026,118 @@
       if (!isGameRunning || isPaused) return;
 
       if (selectedChoice.idiom === currentQuestion.item.idiom) {
-        // 正確
+        // 答對
         currentCombo++;
+        if (currentCombo > maxCombo) {
+          maxCombo = currentCombo; // 即時記錄本局最大連擊數
+        }
         correctCount++;
         const comboBonus = Math.min(currentCombo * 10, 100);
         currentScore += 100 + comboBonus;
         updateScoreUI();
 
-        // 答對時砲彈數公式：1 + Math.floor(combo / 5)
-        const bulletCount = 1 + Math.floor(currentCombo / 5);
+        // 砲彈數公式：最大彈藥數上限為 5 發
+        const bulletCount = Math.min(5, 1 + Math.floor(currentCombo / 5));
         fireCannonProjectiles(bulletCount);
 
-        if (currentCombo % 5 === 0) {
+        if (currentCombo % 5 === 0 && currentCombo <= 20) {
           sound.playComboMilestone();
         }
 
         pickNextQuestion();
       } else {
-        // 錯誤
+        // 答錯
         currentCombo = 0;
         updateScoreUI();
         sound.playWrong();
 
-        // 處罰：額外吐出泡泡
         emitBubbleFromCannon();
-
-        // 該題繼續遊玩，答錯選項按鈕反灰停用
         buttonElement.disabled = true;
       }
     }
 
     function updateScoreUI() {
       document.getElementById('display-score').textContent = currentScore;
-      document.getElementById('combo-text').textContent = `連續 Combo: ${currentCombo} 次`;
+      document.getElementById('combo-text').textContent = `連續 Combo: ${currentCombo} 次 (最高: ${maxCombo})`;
 
-      const progressVal = currentCombo % 5;
-      const progressPercent = (progressVal / 5) * 100;
-      document.getElementById('combo-progress').style.width = `${progressPercent}%`;
+      const currentBullets = Math.min(5, 1 + Math.floor(currentCombo / 5));
 
-      const currentBullets = 1 + Math.floor(currentCombo / 5);
-      document.getElementById('combo-bullet-award').textContent = `下一級連射: ${progressVal}/5 (當前: ${currentBullets}發)`;
+      if (currentBullets >= 5) {
+        // 已達最大連彈上限
+        document.getElementById('combo-progress').style.width = '100%';
+        document.getElementById('combo-bullet-award').textContent = '已達最大連射 (5發滿額)';
+      } else {
+        const progressVal = currentCombo % 5;
+        const progressPercent = (progressVal / 5) * 100;
+        document.getElementById('combo-progress').style.width = `${progressPercent}%`;
+        document.getElementById('combo-bullet-award').textContent = `下一級連射: ${progressVal}/5 (當前: ${currentBullets}發)`;
+      }
     }
 
     /* ============================================================
-       十、Canvas 物理模擬與主渲染迴圈
+       八、Canvas 渲染與主物理循環
        ============================================================ */
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
 
-    function checkGameOver() {
-      for (let r = 0; r < GAME_CONFIG.maxRows; r++) {
-        const cols = (r % 2 === 0) ? GAME_CONFIG.colsEven : GAME_CONFIG.colsOdd;
-        for (let c = 0; c < cols; c++) {
-          const b = gridBubbles[r][c];
-          if (b && (b.y + b.radius) >= GAME_CONFIG.dangerRowY) {
-            triggerGameOver();
-            return;
-          }
-        }
-      }
-    }
+    let lastFrameTime = performance.now();
 
-    function triggerGameOver() {
-      isGameRunning = false;
-      document.getElementById('final-score').textContent = currentScore;
-      document.getElementById('final-time').textContent = gameTimeSeconds;
-      document.getElementById('modal-gameover').classList.remove('hidden');
-    }
-
-    function updatePhysics() {
-      if (!isGameRunning || isPaused) return;
-
-      // 砲台左右擺動
+    function updatePhysicsLoop(dt) {
       cannon.x += cannon.speed * cannon.direction;
       const halfW = cannon.width / 2;
-      if (cannon.x - halfW <= 12) {
-        cannon.x = 12 + halfW;
+      if (cannon.x - halfW <= 16) {
+        cannon.x = 16 + halfW;
         cannon.direction = 1;
-      } else if (cannon.x + halfW >= GAME_CONFIG.canvasWidth - 12) {
-        cannon.x = GAME_CONFIG.canvasWidth - 12 - halfW;
+      } else if (cannon.x + halfW >= GAME_CONFIG.canvasWidth - 16) {
+        cannon.x = GAME_CONFIG.canvasWidth - 16 - halfW;
         cannon.direction = -1;
       }
 
-      // 定時生成泡泡
+      if (!isGameRunning || isPaused) return;
+
+      // 泡泡定時生成計時
       spawnTimer++;
       if (spawnTimer >= spawnInterval) {
         emitBubbleFromCannon();
         spawnTimer = 0;
       }
 
-      // 漂浮泡泡上飄與蜂巢撞擊
-      for (let i = floatingBubbles.length - 1; i >= 0; i--) {
-        const b = floatingBubbles[i];
-        b.x += b.vx;
-        b.y += b.vy;
+      // 多步進物理積分[cite: 2]
+      const subDt = dt / physicsWorld.substeps;
+      for (let s = 0; s < physicsWorld.substeps; s++) {
+        for (const b of bubbles) {
+          b.vy += physicsWorld.buoyancy * subDt;
+          b.vx *= (1 - physicsWorld.airDrag * subDt);
+          b.vy *= (1 - physicsWorld.airDrag * subDt);
 
-        // 左右壁彈射
-        if (b.x - b.radius <= 0) {
-          b.x = b.radius;
-          b.vx *= -1;
-        } else if (b.x + b.radius >= GAME_CONFIG.canvasWidth) {
-          b.x = GAME_CONFIG.canvasWidth - b.radius;
-          b.vx *= -1;
-        }
+          b.x += b.vx * subDt;
+          b.y += b.vy * subDt;
 
-        // 碰頂或碰觸現有網格泡泡
-        let snapped = false;
-        if (b.y - b.radius <= 0) {
-          snapped = snapBubbleToGrid(b);
-        } else {
-          for (let r = 0; r < GAME_CONFIG.maxRows; r++) {
-            const cols = (r % 2 === 0) ? GAME_CONFIG.colsEven : GAME_CONFIG.colsOdd;
-            for (let c = 0; c < cols; c++) {
-              const gb = gridBubbles[r][c];
-              if (gb) {
-                const dist = Math.hypot(b.x - gb.x, b.y - gb.y);
-                if (dist < (b.radius + gb.radius - 2)) {
-                  snapped = snapBubbleToGrid(b);
-                  break;
-                }
-              }
-            }
-            if (snapped) break;
+          if (!b.hasEnteredZone && b.y < GAME_CONFIG.dangerRowY - 30) {
+            b.hasEnteredZone = true;
           }
+
+          if (Math.hypot(b.vx, b.vy) < 8 && b.y < 300) {
+            b.settledTimer += subDt;
+            if (b.settledTimer > 0.8 && spawnTimer > spawnInterval * 0.4) {
+              spawnTimer = spawnInterval;
+              b.settledTimer = 0;
+            }
+          } else {
+            b.settledTimer = 0;
+          }
+
+          solveWallCollisions(b);
         }
 
-        if (snapped) {
-          floatingBubbles.splice(i, 1);
-          checkGameOver();
+        for (let i = 0; i < bubbles.length; i++) {
+          for (let j = i + 1; j < bubbles.length; j++) {
+            solveBallBallCollision(bubbles[i], bubbles[j]);
+          }
         }
       }
 
-      // 砲彈追蹤飛行
+      // 砲彈追蹤
       for (let i = bullets.length - 1; i >= 0; i--) {
         const blt = bullets[i];
         const tgt = blt.target;
@@ -1258,7 +1154,7 @@
         }
       }
 
-      // 爆炸粒子衰減
+      // 爆炸碎屑粒子
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
@@ -1268,12 +1164,15 @@
           particles.splice(i, 1);
         }
       }
+
+      checkGameOverConditions();
     }
 
     function drawBubble(x, y, radius, colorIdx) {
       const col = GAME_CONFIG.colors[colorIdx] || GAME_CONFIG.colors[0];
 
       ctx.save();
+      // 外光暈與晶瑩立體漸層
       const grad = ctx.createRadialGradient(
         x - radius * 0.35, y - radius * 0.35, radius * 0.1,
         x, y, radius
@@ -1287,49 +1186,52 @@
       ctx.fillStyle = grad;
       ctx.fill();
 
-      // 水潤反光
+      // 水潤高光點
       ctx.beginPath();
-      ctx.arc(x - radius * 0.3, y - radius * 0.3, radius * 0.26, 0, Math.PI * 2);
+      ctx.arc(x - radius * 0.32, y - radius * 0.32, radius * 0.28, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
       ctx.fill();
       ctx.restore();
     }
 
-    function renderFrame() {
+    function renderFrame(now) {
+      const rawDt = (now - lastFrameTime) / 1000;
+      const dt = Math.max(0.001, Math.min(rawDt, 0.033));
+      lastFrameTime = now;
+
       ctx.clearRect(0, 0, GAME_CONFIG.canvasWidth, GAME_CONFIG.canvasHeight);
 
-      // 警戒線
+      // 1. 底部砲台滑軌
+      ctx.save();
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(16, cannon.y + cannon.height + 4);
+      ctx.lineTo(GAME_CONFIG.canvasWidth - 16, cannon.y + cannon.height + 4);
+      ctx.stroke();
+      ctx.restore();
+
+      // 2. 死亡警戒線 (Danger Line)
       ctx.save();
       ctx.setLineDash([8, 6]);
       ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(10, GAME_CONFIG.dangerRowY);
-      ctx.lineTo(GAME_CONFIG.canvasWidth - 10, GAME_CONFIG.dangerRowY);
+      ctx.moveTo(12, GAME_CONFIG.dangerRowY);
+      ctx.lineTo(GAME_CONFIG.canvasWidth - 12, GAME_CONFIG.dangerRowY);
       ctx.stroke();
 
       ctx.fillStyle = '#ef4444';
       ctx.font = '12px sans-serif';
-      ctx.fillText('死亡警戒線 (Danger Line)', 16, GAME_CONFIG.dangerRowY - 6);
+      ctx.fillText('死亡警戒線 (Danger Line)', 18, GAME_CONFIG.dangerRowY - 6);
       ctx.restore();
 
-      // 網格泡泡
-      for (let r = 0; r < GAME_CONFIG.maxRows; r++) {
-        const cols = (r % 2 === 0) ? GAME_CONFIG.colsEven : GAME_CONFIG.colsOdd;
-        for (let c = 0; c < cols; c++) {
-          const b = gridBubbles[r][c];
-          if (b) {
-            drawBubble(b.x, b.y, b.radius, b.colorIndex);
-          }
-        }
+      // 3. 繪製所有泡泡
+      for (const b of bubbles) {
+        drawBubble(b.x, b.y, b.r, b.colorIndex);
       }
 
-      // 漂浮泡泡
-      for (const b of floatingBubbles) {
-        drawBubble(b.x, b.y, b.radius, b.colorIndex);
-      }
-
-      // 砲彈
+      // 4. 繪製追蹤砲彈
       for (const blt of bullets) {
         ctx.save();
         ctx.beginPath();
@@ -1341,7 +1243,7 @@
         ctx.restore();
       }
 
-      // 粒子
+      // 5. 繪製粒子
       for (const p of particles) {
         ctx.save();
         ctx.globalAlpha = p.alpha;
@@ -1352,41 +1254,70 @@
         ctx.restore();
       }
 
-      // 砲台
+      // 6. 繪製發光金屬砲台
       ctx.save();
-      ctx.fillStyle = '#475569';
-      ctx.fillRect(cannon.x - cannon.width / 2, cannon.y, cannon.width, cannon.height);
-      ctx.strokeStyle = '#94a3b8';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(cannon.x - cannon.width / 2, cannon.y, cannon.width, cannon.height);
+      const halfW = cannon.width / 2;
 
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(cannon.x - 7, cannon.y - 13, 14, 15);
+      // 砲管 (發射口朝上)
+      const gradBarrel = ctx.createLinearGradient(cannon.x - 9, cannon.y - 16, cannon.x + 9, cannon.y);
+      gradBarrel.addColorStop(0, '#7dd3fc');
+      gradBarrel.addColorStop(1, '#0284c7');
+      ctx.fillStyle = gradBarrel;
+      ctx.fillRect(cannon.x - 9, cannon.y - 16, 18, 18);
+      ctx.strokeStyle = '#e0f2fe';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(cannon.x - 9, cannon.y - 16, 18, 18);
+
+      // 基座車體
+      const gradBase = ctx.createLinearGradient(cannon.x - halfW, cannon.y, cannon.x + halfW, cannon.y + cannon.height);
+      gradBase.addColorStop(0, '#38bdf8');
+      gradBase.addColorStop(0.5, '#0284c7');
+      gradBase.addColorStop(1, '#0369a1');
+
+      ctx.fillStyle = gradBase;
+      ctx.beginPath();
+      ctx.roundRect(cannon.x - halfW, cannon.y, cannon.width, cannon.height, 8);
+      ctx.fill();
+      ctx.strokeStyle = '#bae6fd';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 核心光芒
+      ctx.beginPath();
+      ctx.arc(cannon.x, cannon.y + cannon.height / 2, 7, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 10;
+      ctx.fill();
       ctx.restore();
 
-      updatePhysics();
+      updatePhysicsLoop(dt);
       requestAnimationFrame(renderFrame);
     }
 
     /* ============================================================
-       十一、難度定時器 (每滿 1 分鐘提速升級)
+       九、難度定時器 (每滿 1 分鐘減少 50 幀，最低至 50 幀)
        ============================================================ */
     setInterval(() => {
       if (!isGameRunning || isPaused) return;
 
       gameTimeSeconds++;
 
+      // 每過 1 分鐘 (60 秒) 加快一級
       if (gameTimeSeconds % 60 === 0) {
         gameLevel++;
         document.getElementById('display-level').textContent = gameLevel;
 
-        spawnInterval = Math.max(80, spawnInterval - 25);
-        baseBubbleSpeed += 0.35;
+        // 浮力微幅強化
+        physicsWorld.buoyancy -= 50;
+
+        // 每滿 1 分鐘生成間隔減少 50 幀，最低遞減至 50 幀
+        spawnInterval = Math.max(50, spawnInterval - 50);
       }
     }, 1000);
 
     /* ============================================================
-       十二、排行榜資料流 (記憶體模式)
+       十、排行榜純記憶體資料流 (含最高連擊記錄)
        ============================================================ */
     function renderLeaderboardTable() {
       const tbody = document.getElementById('leaderboard-tbody');
@@ -1394,7 +1325,8 @@
         tbody.removeChild(tbody.firstChild);
       }
 
-      leaderboardState.sort((a, b) => b.score - a.score || b.time - a.time);
+      // 依分數降序，若同分則依最高連擊降序
+      leaderboardState.sort((a, b) => b.score - a.score || b.maxCombo - a.maxCombo || b.time - a.time);
 
       leaderboardState.slice(0, 10).forEach((entry, idx) => {
         const tr = document.createElement('tr');
@@ -1408,6 +1340,11 @@
         const tdScore = document.createElement('td');
         tdScore.textContent = entry.score.toString();
 
+        const tdCombo = document.createElement('td');
+        tdCombo.textContent = `${entry.maxCombo}連擊`;
+        tdCombo.style.color = '#f43f5e';
+        tdCombo.style.fontWeight = 'bold';
+
         const tdTime = document.createElement('td');
         tdTime.textContent = `${entry.time}s`;
 
@@ -1417,6 +1354,7 @@
         tr.appendChild(tdRank);
         tr.appendChild(tdName);
         tr.appendChild(tdScore);
+        tr.appendChild(tdCombo);
         tr.appendChild(tdTime);
         tr.appendChild(tdCorrect);
 
@@ -1425,53 +1363,50 @@
     }
 
     /* ============================================================
-       十三、遊戲流程與介面監聽 (零 inline handler)
+       十一、遊戲初始化與啟動流程
        ============================================================ */
     function resetAndStartGame() {
       currentScore = 0;
       currentCombo = 0;
+      maxCombo = 0;
       correctCount = 0;
       gameTimeSeconds = 0;
       gameLevel = 1;
-      spawnInterval = 200;
-      baseBubbleSpeed = 1.5;
+
+      // 初始間隔 300 幀，彈性 0.0
+      physicsWorld.buoyancy = -220;
+      physicsWorld.restitution = 0.0;
+      spawnInterval = 300;
       spawnTimer = 0;
 
-      floatingBubbles = [];
+      bubbles = [];
       bullets = [];
       particles = [];
-      initHexGrid();
 
       document.getElementById('display-level').textContent = '1';
       updateScoreUI();
 
-      // 預設頂層 2 排固定泡泡，提供初始盤面
-      for (let r = 0; r < 2; r++) {
-        const cols = (r % 2 === 0) ? GAME_CONFIG.colsEven : GAME_CONFIG.colsOdd;
-        for (let c = 0; c < cols; c++) {
-          const center = getGridCenter(r, c);
-          const b = createBubbleEntity(center.x, center.y, GAME_CONFIG.bubbleRadius);
-          b.state = 'pinned';
-          gridBubbles[r][c] = b;
-        }
-      }
-
       isGameRunning = true;
       isPaused = false;
+
+      emitBubbleFromCannon();
       pickNextQuestion();
     }
 
-    document.addEventListener('DOMContentLoaded', async () => {
-      await loadIdiomDataset();
+    /* ============================================================
+       十二、事件監聽掛載 (零 inline handlers)
+       ============================================================ */
+    document.addEventListener('DOMContentLoaded', () => {
+      requestAnimationFrame(renderFrame);
 
-      // 開始按鈕
+      loadIdiomDataset();
+
       document.getElementById('btn-start-game').addEventListener('click', () => {
         sound.init();
         document.getElementById('modal-welcome').classList.add('hidden');
         resetAndStartGame();
       });
 
-      // 音效切換
       const btnSound = document.getElementById('btn-sound');
       btnSound.addEventListener('click', () => {
         sound.init();
@@ -1479,7 +1414,6 @@
         btnSound.textContent = muted ? '🔇 靜音' : '🔊 音效';
       });
 
-      // 說明按鈕
       document.getElementById('btn-help').addEventListener('click', () => {
         isPaused = true;
         document.getElementById('modal-help').classList.remove('hidden');
@@ -1490,7 +1424,6 @@
         document.getElementById('modal-help').classList.add('hidden');
       });
 
-      // 暫停按鈕
       document.getElementById('btn-pause').addEventListener('click', () => {
         if (!isGameRunning) return;
         isPaused = true;
@@ -1502,7 +1435,7 @@
         document.getElementById('modal-pause').classList.add('hidden');
       });
 
-      // 送出排行榜
+      // 登記排行榜
       document.getElementById('btn-submit-score').addEventListener('click', () => {
         const inputElem = document.getElementById('player-nickname');
         const rawName = inputElem.value.trim() || '無名英雄';
@@ -1511,6 +1444,7 @@
         leaderboardState.push({
           name: cleanName,
           score: currentScore,
+          maxCombo: maxCombo,
           time: gameTimeSeconds,
           correct: correctCount
         });
@@ -1526,8 +1460,6 @@
         document.getElementById('modal-leaderboard').classList.add('hidden');
         resetAndStartGame();
       });
-
-      requestAnimationFrame(renderFrame);
     });
   </script>
 </body>
