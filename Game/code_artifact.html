@@ -159,18 +159,18 @@
     <button type="button" id="btn-sound-toggle" class="btn-sound" aria-label="切換音效">🔊 音效: 開</button>
   </header>
 
-  <!-- 跑馬燈區塊：調整為 2X(4軌), 4X(3軌), 6X(2軌), 8X(1軌), 10X(1軌) -->
+  <!-- 跑馬燈區塊：2X(5軌), 4X(4軌), 6X(3軌-兩側), 8X(2軌-兩側), 10X(1軌-兩側) -->
   <section style="background: rgba(0,0,0,0.85); padding: 10px; border-radius: 10px; border: 2px solid rgba(245,158,11,0.7);">
     <div style="font-size: 0.75rem; color: #fbd38d; margin-bottom: 6px; display: flex; justify-content: space-between;">
-      <span>● 押注倍率跑馬燈</span>
+      <span>● 押注倍率跑馬燈 (高賠禁開中央4~8軌)</span>
       <span id="win-slots-count-hint" style="color: #6ee7b7;">目前狀態：尚未投幣</span>
     </div>
     <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;" id="marquee-grid">
-      <div class="odd-card" data-mult="2" data-wins="4">2X<span style="display:block; font-size: 10px; font-weight: normal;">(4軌)</span></div>
-      <div class="odd-card" data-mult="4" data-wins="3">4X<span style="display:block; font-size: 10px; font-weight: normal;">(3軌)</span></div>
-      <div class="odd-card" data-mult="6" data-wins="2">6X<span style="display:block; font-size: 10px; font-weight: normal;">(2軌)</span></div>
-      <div class="odd-card" data-mult="8" data-wins="1">8X<span style="display:block; font-size: 10px; font-weight: normal;">(1軌)</span></div>
-      <div class="odd-card" data-mult="10" data-wins="1">10X<span style="display:block; font-size: 10px; font-weight: normal;">(1軌)</span></div>
+      <div class="odd-card" data-mult="2" data-wins="5">2X<span style="display:block; font-size: 10px; font-weight: normal;">(5軌)</span></div>
+      <div class="odd-card" data-mult="4" data-wins="4">4X<span style="display:block; font-size: 10px; font-weight: normal;">(4軌)</span></div>
+      <div class="odd-card" data-mult="6" data-wins="3">6X<span style="display:block; font-size: 10px; font-weight: normal;">(3軌邊)</span></div>
+      <div class="odd-card" data-mult="8" data-wins="2">8X<span style="display:block; font-size: 10px; font-weight: normal;">(2軌邊)</span></div>
+      <div class="odd-card" data-mult="10" data-wins="1">10X<span style="display:block; font-size: 10px; font-weight: normal;">(1軌邊)</span></div>
     </div>
   </section>
 
@@ -457,7 +457,7 @@ for (let r = 0; r < ROWS; r++) {
   }
 }
 
-// 2. 球道上方倒三角導向釘（通道皆 >= 24px）
+// 2. 球道上方倒三角導向釘
 for (let i = 0; i <= TOTAL_SLOTS; i++) {
   const divX = SLOTS_START_X + i * SLOT_W;
   pins.push({ x: divX, y: SLOTS_TOP_Y - 2, r: PIN_R + 0.5, type: 'divider-top' });
@@ -505,7 +505,8 @@ function updateWinHint(mult, winsCount) {
   s1.style.fontWeight = 'bold';
   s1.textContent = `${escapeHTML(String(mult))}X`;
 
-  const t2 = document.createTextNode(' (中獎: ');
+  const isEdgeRestricted = mult >= 6;
+  const t2 = document.createTextNode(isEdgeRestricted ? ' (排除4~8軌, 中: ' : ' (中獎: ');
   const s2 = document.createElement('span');
   s2.style.color = '#fde047';
   s2.style.fontWeight = 'bold';
@@ -514,17 +515,31 @@ function updateWinHint(mult, winsCount) {
   domWinHint.append(t1, s1, t2, s2);
 }
 
+/**
+ * 依據倍率決定中獎軌道抽樣池
+ * 高倍率 (6X, 8X, 10X) 排除中央 4~8 軌道（索引 3, 4, 5, 6, 7）
+ */
 function calculateWinSlots(mult, winsCount) {
   STATE.winSlotCount = winsCount;
   STATE.winSlotIndices.clear();
 
-  const allIndices = Array.from({ length: TOTAL_SLOTS }, (_, i) => i);
-  for (let i = allIndices.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [allIndices[i], allIndices[j]] = [allIndices[j], allIndices[i]];
+  let pool = [];
+  // 軌道 4~8 對應索引為 3 ~ 7
+  if (mult >= 6) {
+    // 僅保留左側軌道 (1, 2, 3 -> 索引 0, 1, 2) 與右側軌道 (9, 10, 11, 12 -> 索引 8, 9, 10, 11)
+    pool = [0, 1, 2, 8, 9, 10, 11];
+  } else {
+    // 2X 與 4X 允許全 12 軌道抽樣
+    pool = Array.from({ length: TOTAL_SLOTS }, (_, i) => i);
   }
 
-  const selected = allIndices.slice(0, winsCount);
+  // Fisher-Yates 洗牌法
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+
+  const selected = pool.slice(0, winsCount);
   selected.forEach(idx => STATE.winSlotIndices.add(idx));
 
   slots.forEach((slot, i) => {
