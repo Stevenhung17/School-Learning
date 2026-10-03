@@ -159,17 +159,17 @@
     <button type="button" id="btn-sound-toggle" class="btn-sound" aria-label="切換音效">🔊 音效: 開</button>
   </header>
 
-  <!-- 跑馬燈區塊 -->
+  <!-- 跑馬燈區塊：調整為 2X(4軌), 4X(3軌), 6X(2軌), 8X(1軌), 10X(1軌) -->
   <section style="background: rgba(0,0,0,0.85); padding: 10px; border-radius: 10px; border: 2px solid rgba(245,158,11,0.7);">
     <div style="font-size: 0.75rem; color: #fbd38d; margin-bottom: 6px; display: flex; justify-content: space-between;">
       <span>● 押注倍率跑馬燈</span>
       <span id="win-slots-count-hint" style="color: #6ee7b7;">目前狀態：尚未投幣</span>
     </div>
     <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;" id="marquee-grid">
-      <div class="odd-card" data-mult="2" data-wins="6">2X<span style="display:block; font-size: 10px; font-weight: normal;">(6軌)</span></div>
-      <div class="odd-card" data-mult="4" data-wins="4">4X<span style="display:block; font-size: 10px; font-weight: normal;">(4軌)</span></div>
-      <div class="odd-card" data-mult="6" data-wins="3">6X<span style="display:block; font-size: 10px; font-weight: normal;">(3軌)</span></div>
-      <div class="odd-card" data-mult="8" data-wins="2">8X<span style="display:block; font-size: 10px; font-weight: normal;">(2軌)</span></div>
+      <div class="odd-card" data-mult="2" data-wins="4">2X<span style="display:block; font-size: 10px; font-weight: normal;">(4軌)</span></div>
+      <div class="odd-card" data-mult="4" data-wins="3">4X<span style="display:block; font-size: 10px; font-weight: normal;">(3軌)</span></div>
+      <div class="odd-card" data-mult="6" data-wins="2">6X<span style="display:block; font-size: 10px; font-weight: normal;">(2軌)</span></div>
+      <div class="odd-card" data-mult="8" data-wins="1">8X<span style="display:block; font-size: 10px; font-weight: normal;">(1軌)</span></div>
       <div class="odd-card" data-mult="10" data-wins="1">10X<span style="display:block; font-size: 10px; font-weight: normal;">(1軌)</span></div>
     </div>
   </section>
@@ -413,18 +413,18 @@ const CW = canvas.width;
 const CH = canvas.height;
 
 // 彈珠與邊界設定
-const SHOOTER_LANE_X = 416; // 右側發射道左側隔板
-const BALL_R = 10.5;        // 【要求1】加大 50%（原 7.0 -> 10.5px）
+const SHOOTER_LANE_X = 416;
+const BALL_R = 10.5; // 加大 50%
 const PIN_R = 3.6;
 const GRAVITY = 0.168;
 const PIN_BOUNCE = 0.704;
 const WALL_BOUNCE = 0.624;
 
-// 【Bug 3 修正】：將空間完整平均分配給 12 個球軌，消除左右空白軌
+// 均分 12 球軌
 const TOTAL_SLOTS = 12;
-const SLOTS_START_X = 12; // 緊貼左牆 (X = 12)
-const SLOTS_TOTAL_WIDTH = SHOOTER_LANE_X - SLOTS_START_X; // 416 - 12 = 404
-const SLOT_W = SLOTS_TOTAL_WIDTH / TOTAL_SLOTS;          // 每軌約 33.66px
+const SLOTS_START_X = 12;
+const SLOTS_TOTAL_WIDTH = SHOOTER_LANE_X - SLOTS_START_X;
+const SLOT_W = SLOTS_TOTAL_WIDTH / TOTAL_SLOTS;
 const SLOTS_TOP_Y = CH - 85;
 
 const slots = [];
@@ -440,10 +440,10 @@ for (let i = 0; i < TOTAL_SLOTS; i++) {
 // 釘陣配置
 const pins = [];
 
-// 1. 上半部交錯主釘板（因應球體加大，適度擴大橫向及縱向間距）
+// 1. 上半部交錯主釘板
 const ROWS = 8;
 const ROW_START_Y = 120;
-const ROW_SPACING = 30; // 擴大行距（原 27 -> 30px）
+const ROW_SPACING = 30;
 for (let r = 0; r < ROWS; r++) {
   const isOdd = r % 2 === 1;
   const count = isOdd ? 10 : 11;
@@ -457,17 +457,13 @@ for (let r = 0; r < ROWS; r++) {
   }
 }
 
-// 2. 【Bug 2 修正】：重新設計球道上方黃銅干擾釘
-// 移除原有容易造成夾球的密集第二排，改為倒三角型均勻分佈，通道淨寬均 >= 24px
+// 2. 球道上方倒三角導向釘（通道皆 >= 24px）
 for (let i = 0; i <= TOTAL_SLOTS; i++) {
   const divX = SLOTS_START_X + i * SLOT_W;
-  // 分隔板頂釘
   pins.push({ x: divX, y: SLOTS_TOP_Y - 2, r: PIN_R + 0.5, type: 'divider-top' });
 
   if (i < TOTAL_SLOTS) {
-    // 漏斗第 1 層（正中間頂部導向釘）
     pins.push({ x: divX + SLOT_W * 0.5, y: SLOTS_TOP_Y - 30, r: PIN_R + 0.2, type: 'slot-funnel' });
-    // 漏斗第 2 層（更上方交錯導引釘，只在偶數道放置，避免間距過窄）
     if (i % 2 === 0) {
       pins.push({ x: divX + SLOT_W, y: SLOTS_TOP_Y - 56, r: PIN_R, type: 'slot-funnel' });
     }
@@ -667,7 +663,6 @@ function releaseAndLaunch() {
   btnShoot.disabled = true;
   btnInsert.disabled = true;
 
-  // 稍微依彈珠質量增補彈射速度
   const launchSpeed = (13.5 + (launchForce / 100) * 8.6) * 0.82;
   ball.vy = -launchSpeed;
   ball.vx = (Math.random() - 0.5) * 0.25;
@@ -689,7 +684,7 @@ function updatePhysics() {
   ball.x += ball.vx;
   ball.y += ball.vy;
 
-  // 1. 右側發射道物理
+  // 1. 發射道物理
   if (ball.inShooterLane) {
     if (ball.x + BALL_R > CW - 5) {
       ball.x = CW - 5 - BALL_R;
@@ -700,7 +695,6 @@ function updatePhysics() {
       ball.vx = Math.abs(ball.vx) * WALL_BOUNCE;
     }
 
-    // 順利通過頂部導流進入主遊戲區
     if (ball.y < 75) {
       ball.inShooterLane = false;
       ball.vx = (-5.6 - Math.random() * 2.8) * 0.8;
@@ -709,10 +703,10 @@ function updatePhysics() {
       return;
     }
 
-    // 【Bug 1 修正】：彈射力道過輕未登頂而落回發射道
+    // 發射力道過輕回落重置
     if (ball.vy > 0 && ball.y >= CH - 45) {
       ball.y = CH - 45;
-      ball.vy = -ball.vy * 0.25; // 彈簧微緩衝吸收
+      ball.vy = -ball.vy * 0.25;
       if (Math.abs(ball.vy) < 0.8) {
         ball.vy = 0;
         ball.vx = 0;
@@ -743,7 +737,7 @@ function updatePhysics() {
     sound.playPinHit(0.7);
   }
 
-  // 3. 與釘子的碰撞
+  // 3. 釘子碰撞
   for (let i = 0; i < pins.length; i++) {
     const pin = pins[i];
     const dx = ball.x - pin.x;
@@ -762,7 +756,6 @@ function updatePhysics() {
         ball.vx += nx * impulse;
         ball.vy += ny * impulse;
 
-        // 【防卡球微震盪】：若速度過低，給予微幅水平推力避免垂直卡在釘子正上方
         if (Math.abs(ball.vx) < 0.25) {
           ball.vx += (Math.random() > 0.5 ? 0.45 : -0.45);
         }
@@ -777,7 +770,7 @@ function updatePhysics() {
     }
   }
 
-  // 4. 與 12 軌道分隔木條的碰撞
+  // 4. 球軌分隔木條碰撞
   for (let i = 0; i <= TOTAL_SLOTS; i++) {
     const divX = SLOTS_START_X + i * SLOT_W;
     if (ball.y > SLOTS_TOP_Y && ball.y < CH - 15) {
@@ -789,7 +782,7 @@ function updatePhysics() {
     }
   }
 
-  // 5. 沉入軌道底部結算判定
+  // 5. 軌道沉入判定
   if (ball.y >= CH - 36) {
     const relativeX = ball.x - SLOTS_START_X;
     let slotIdx = Math.floor(relativeX / SLOT_W);
@@ -797,7 +790,6 @@ function updatePhysics() {
     settleRound(slotIdx);
   }
 
-  // 防脫軌異常保護
   if (ball.y > CH + 10 || (ball.y > SLOTS_TOP_Y && ball.x > SHOOTER_LANE_X + 2)) {
     settleRound(null);
   }
@@ -981,7 +973,7 @@ function render() {
   requestAnimationFrame(render);
 }
 
-// 單一主渲染迴圈
+// 啟動主渲染迴圈
 requestAnimationFrame(render);
 </script>
 </body>
