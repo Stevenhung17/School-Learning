@@ -5,19 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>台式復古懷舊打彈珠台</title>
   
-  <!-- 安全 HTTP 標頭宣告 -->
+  <!-- HTTP 安全標頭與 CSP 規範 -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="X-Frame-Options" content="DENY">
   <meta name="referrer" content="strict-origin-when-cross-origin">
 
   <style>
-    :root {
-      --cabinet-wood: #5a1910;
-      --cabinet-border: #380b06;
-      --felt-bg: #101c24;
-      --gold: #f9ca24;
-    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: radial-gradient(circle at center, #1b1622 0%, #09060b 100%);
@@ -207,7 +201,7 @@
     </div>
   </div>
 
-  <!-- 拉桿控制 -->
+  <!-- 操作面板 -->
   <footer style="display: flex; flex-direction: column; gap: 8px;">
     <div style="display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 8px;">
       <span style="font-size: 12px; color: #fde68a;">蓄力:</span>
@@ -223,7 +217,7 @@
     </div>
 
     <div style="display: flex; justify-content: space-between; font-size: 11px; color: #d4d4d8; padding: 0 4px;">
-      <span>提示：先投幣抽選倍率，蓄力發射</span>
+      <span id="game-status-hint">提示：投幣抽出倍率後，長按拉桿蓄力彈射</span>
       <button type="button" id="btn-free-coin" style="background:none; border:none; color: #facc15; text-decoration: underline; cursor: pointer;">免費補幣+20</button>
     </div>
   </footer>
@@ -321,8 +315,8 @@ class SoundController {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(1600 + Math.random() * 800, t);
-      osc.frequency.exponentialRampToValueAtTime(800, t + 0.04);
+      osc.frequency.setValueAtTime(1500 + Math.random() * 800, t);
+      osc.frequency.exponentialRampToValueAtTime(750, t + 0.04);
 
       const volume = Math.min(0.12, 0.02 + speedRatio * 0.08);
       gain.gain.setValueAtTime(volume, t);
@@ -418,17 +412,19 @@ const ctx = canvas.getContext('2d');
 const CW = canvas.width;
 const CH = canvas.height;
 
-const SHOOTER_LANE_X = 416;
-const BALL_R = 7.0;
+// 彈珠與邊界設定
+const SHOOTER_LANE_X = 416; // 右側發射道左側隔板
+const BALL_R = 10.5;        // 【要求1】加大 50%（原 7.0 -> 10.5px）
 const PIN_R = 3.6;
 const GRAVITY = 0.168;
 const PIN_BOUNCE = 0.704;
 const WALL_BOUNCE = 0.624;
 
+// 【Bug 3 修正】：將空間完整平均分配給 12 個球軌，消除左右空白軌
 const TOTAL_SLOTS = 12;
-const SLOTS_START_X = 14;
-const SLOTS_TOTAL_WIDTH = SHOOTER_LANE_X - 22 - SLOTS_START_X;
-const SLOT_W = SLOTS_TOTAL_WIDTH / TOTAL_SLOTS;
+const SLOTS_START_X = 12; // 緊貼左牆 (X = 12)
+const SLOTS_TOTAL_WIDTH = SHOOTER_LANE_X - SLOTS_START_X; // 416 - 12 = 404
+const SLOT_W = SLOTS_TOTAL_WIDTH / TOTAL_SLOTS;          // 每軌約 33.66px
 const SLOTS_TOP_Y = CH - 85;
 
 const slots = [];
@@ -441,38 +437,47 @@ for (let i = 0; i < TOTAL_SLOTS; i++) {
   });
 }
 
+// 釘陣配置
 const pins = [];
-const ROWS = 9;
-const ROW_START_Y = 118;
-const ROW_SPACING = 27;
+
+// 1. 上半部交錯主釘板（因應球體加大，適度擴大橫向及縱向間距）
+const ROWS = 8;
+const ROW_START_Y = 120;
+const ROW_SPACING = 30; // 擴大行距（原 27 -> 30px）
 for (let r = 0; r < ROWS; r++) {
   const isOdd = r % 2 === 1;
-  const count = isOdd ? 11 : 12;
-  const spacing = (SHOOTER_LANE_X - 44) / 11;
-  const offsetX = isOdd ? 26 + spacing * 0.5 : 26;
+  const count = isOdd ? 10 : 11;
+  const spacing = (SHOOTER_LANE_X - 50) / 10;
+  const offsetX = isOdd ? 30 + spacing * 0.5 : 30;
   for (let c = 0; c < count; c++) {
     const px = offsetX + c * spacing;
-    if (px < SHOOTER_LANE_X - 16 && px > 20) {
+    if (px < SHOOTER_LANE_X - 18 && px > 20) {
       pins.push({ x: px, y: ROW_START_Y + r * ROW_SPACING, r: PIN_R, type: 'normal' });
     }
   }
 }
 
+// 2. 【Bug 2 修正】：重新設計球道上方黃銅干擾釘
+// 移除原有容易造成夾球的密集第二排，改為倒三角型均勻分佈，通道淨寬均 >= 24px
 for (let i = 0; i <= TOTAL_SLOTS; i++) {
   const divX = SLOTS_START_X + i * SLOT_W;
-  pins.push({ x: divX, y: SLOTS_TOP_Y - 2, r: PIN_R + 0.8, type: 'divider-top' });
+  // 分隔板頂釘
+  pins.push({ x: divX, y: SLOTS_TOP_Y - 2, r: PIN_R + 0.5, type: 'divider-top' });
+
   if (i < TOTAL_SLOTS) {
-    pins.push({ x: divX + SLOT_W * 0.5, y: SLOTS_TOP_Y - 24, r: PIN_R + 0.2, type: 'slot-funnel' });
-    pins.push({ x: divX + (i % 2 === 0 ? SLOT_W * 0.3 : SLOT_W * 0.7), y: SLOTS_TOP_Y - 44, r: PIN_R, type: 'slot-funnel' });
+    // 漏斗第 1 層（正中間頂部導向釘）
+    pins.push({ x: divX + SLOT_W * 0.5, y: SLOTS_TOP_Y - 30, r: PIN_R + 0.2, type: 'slot-funnel' });
+    // 漏斗第 2 層（更上方交錯導引釘，只在偶數道放置，避免間距過窄）
     if (i % 2 === 0) {
-      pins.push({ x: divX + SLOT_W * 0.5, y: SLOTS_TOP_Y - 64, r: PIN_R + 0.4, type: 'slot-funnel' });
+      pins.push({ x: divX + SLOT_W, y: SLOTS_TOP_Y - 56, r: PIN_R, type: 'slot-funnel' });
     }
   }
 }
 
+// 彈珠初始狀態
 const ball = {
-  x: SHOOTER_LANE_X + 17,
-  y: CH - 42,
+  x: SHOOTER_LANE_X + 21,
+  y: CH - 45,
   vx: 0,
   vy: 0,
   inShooterLane: true,
@@ -483,6 +488,7 @@ const domCredits = document.getElementById('disp-credits');
 const domBet = document.getElementById('disp-bet');
 const domMultiplier = document.getElementById('disp-multiplier');
 const domWinHint = document.getElementById('win-slots-count-hint');
+const domStatusHint = document.getElementById('game-status-hint');
 const domPowerBar = document.getElementById('power-bar-fill');
 const domPowerPct = document.getElementById('power-pct');
 const btnInsert = document.getElementById('btn-insert-coin');
@@ -497,19 +503,19 @@ function updateWinHint(mult, winsCount) {
   while (domWinHint.firstChild) {
     domWinHint.removeChild(domWinHint.firstChild);
   }
-  const text1 = document.createTextNode('已鎖定 ');
-  const span1 = document.createElement('span');
-  span1.style.color = '#fde047';
-  span1.style.fontWeight = 'bold';
-  span1.textContent = `${escapeHTML(String(mult))}X`;
+  const t1 = document.createTextNode('已鎖定 ');
+  const s1 = document.createElement('span');
+  s1.style.color = '#fde047';
+  s1.style.fontWeight = 'bold';
+  s1.textContent = `${escapeHTML(String(mult))}X`;
 
-  const text2 = document.createTextNode(' (中獎軌: ');
-  const span2 = document.createElement('span');
-  span2.style.color = '#fde047';
-  span2.style.fontWeight = 'bold';
-  span2.textContent = `${escapeHTML(String(winsCount))} 道)`;
+  const t2 = document.createTextNode(' (中獎: ');
+  const s2 = document.createElement('span');
+  s2.style.color = '#fde047';
+  s2.style.fontWeight = 'bold';
+  s2.textContent = `${escapeHTML(String(winsCount))} 軌)`;
 
-  domWinHint.append(text1, span1, text2, span2);
+  domWinHint.append(t1, s1, t2, s2);
 }
 
 function calculateWinSlots(mult, winsCount) {
@@ -581,13 +587,14 @@ function runMarquee(onComplete) {
 function prepareBallForLaunch() {
   if (STATE.ballState !== 'PLAYING') {
     STATE.ballState = 'READY_IN_SHOOTER';
-    ball.x = SHOOTER_LANE_X + 17;
+    ball.x = SHOOTER_LANE_X + 21;
     ball.y = CH - 45;
     ball.vx = 0;
     ball.vy = 0;
     ball.inShooterLane = true;
     ball.trail = [];
     btnShoot.disabled = false;
+    domStatusHint.textContent = '長按按鈕蓄力彈射！';
   }
 }
 
@@ -660,15 +667,15 @@ function releaseAndLaunch() {
   btnShoot.disabled = true;
   btnInsert.disabled = true;
 
-  const launchSpeed = (13.5 + (launchForce / 100) * 8.3) * 0.8;
+  // 稍微依彈珠質量增補彈射速度
+  const launchSpeed = (13.5 + (launchForce / 100) * 8.6) * 0.82;
   ball.vy = -launchSpeed;
-  ball.vx = (Math.random() - 0.5) * 0.32;
+  ball.vx = (Math.random() - 0.5) * 0.25;
   ball.inShooterLane = true;
 
   sound.playSpringRelease();
 }
 
-// 統一指針事件防衝突
 btnShoot.addEventListener('pointerdown', startCharging);
 window.addEventListener('pointerup', releaseAndLaunch);
 
@@ -682,24 +689,44 @@ function updatePhysics() {
   ball.x += ball.vx;
   ball.y += ball.vy;
 
+  // 1. 右側發射道物理
   if (ball.inShooterLane) {
-    if (ball.x + BALL_R > CW - 7) {
-      ball.x = CW - 7 - BALL_R;
+    if (ball.x + BALL_R > CW - 5) {
+      ball.x = CW - 5 - BALL_R;
       ball.vx = -Math.abs(ball.vx) * WALL_BOUNCE;
     }
     if (ball.x - BALL_R < SHOOTER_LANE_X && ball.y > 88) {
       ball.x = SHOOTER_LANE_X + BALL_R;
       ball.vx = Math.abs(ball.vx) * WALL_BOUNCE;
     }
+
+    // 順利通過頂部導流進入主遊戲區
     if (ball.y < 75) {
       ball.inShooterLane = false;
       ball.vx = (-5.6 - Math.random() * 2.8) * 0.8;
       ball.vy = Math.min(ball.vy, -1.2);
       sound.playPinHit(1.2);
+      return;
+    }
+
+    // 【Bug 1 修正】：彈射力道過輕未登頂而落回發射道
+    if (ball.vy > 0 && ball.y >= CH - 45) {
+      ball.y = CH - 45;
+      ball.vy = -ball.vy * 0.25; // 彈簧微緩衝吸收
+      if (Math.abs(ball.vy) < 0.8) {
+        ball.vy = 0;
+        ball.vx = 0;
+        STATE.ballState = 'READY_IN_SHOOTER';
+        btnShoot.disabled = false;
+        btnInsert.disabled = false;
+        domStatusHint.textContent = '⚠️ 發射力道過輕，請重新蓄力彈射！';
+        return;
+      }
     }
     return;
   }
 
+  // 2. 邊界碰撞
   if (ball.y - BALL_R < 10) {
     ball.y = 10 + BALL_R;
     ball.vy = Math.abs(ball.vy) * WALL_BOUNCE;
@@ -716,6 +743,7 @@ function updatePhysics() {
     sound.playPinHit(0.7);
   }
 
+  // 3. 與釘子的碰撞
   for (let i = 0; i < pins.length; i++) {
     const pin = pins[i];
     const dx = ball.x - pin.x;
@@ -724,19 +752,22 @@ function updatePhysics() {
     const minDist = BALL_R + pin.r;
 
     if (dist < minDist) {
-      const nx = dx / dist;
-      const ny = dy / dist;
+      const nx = dx / (dist || 1);
+      const ny = dy / (dist || 1);
       const curSpeedAlongNormal = ball.vx * nx + ball.vy * ny;
+
       if (curSpeedAlongNormal < 0) {
         const restitution = pin.type === 'slot-funnel' ? 0.736 : PIN_BOUNCE;
         const impulse = -(1 + restitution) * curSpeedAlongNormal;
         ball.vx += nx * impulse;
         ball.vy += ny * impulse;
 
-        ball.vx += (Math.random() - 0.5) * 0.68;
-        ball.vy += (Math.random() - 0.5) * 0.28;
+        // 【防卡球微震盪】：若速度過低，給予微幅水平推力避免垂直卡在釘子正上方
+        if (Math.abs(ball.vx) < 0.25) {
+          ball.vx += (Math.random() > 0.5 ? 0.45 : -0.45);
+        }
 
-        const overlap = minDist - dist + 0.35;
+        const overlap = minDist - dist + 0.4;
         ball.x += nx * overlap;
         ball.y += ny * overlap;
 
@@ -746,17 +777,19 @@ function updatePhysics() {
     }
   }
 
+  // 4. 與 12 軌道分隔木條的碰撞
   for (let i = 0; i <= TOTAL_SLOTS; i++) {
     const divX = SLOTS_START_X + i * SLOT_W;
     if (ball.y > SLOTS_TOP_Y && ball.y < CH - 15) {
-      if (Math.abs(ball.x - divX) < BALL_R + 1.5) {
-        ball.vx = (ball.x > divX ? 1 : -1) * (Math.abs(ball.vx) * 0.52 + 0.64);
-        ball.x = ball.x > divX ? divX + BALL_R + 1.6 : divX - (BALL_R + 1.6);
+      if (Math.abs(ball.x - divX) < BALL_R + 1.2) {
+        ball.vx = (ball.x > divX ? 1 : -1) * (Math.abs(ball.vx) * 0.52 + 0.6);
+        ball.x = ball.x > divX ? divX + BALL_R + 1.3 : divX - (BALL_R + 1.3);
         sound.playPinHit(0.5);
       }
     }
   }
 
+  // 5. 沉入軌道底部結算判定
   if (ball.y >= CH - 36) {
     const relativeX = ball.x - SLOTS_START_X;
     let slotIdx = Math.floor(relativeX / SLOT_W);
@@ -764,6 +797,7 @@ function updatePhysics() {
     settleRound(slotIdx);
   }
 
+  // 防脫軌異常保護
   if (ball.y > CH + 10 || (ball.y > SLOTS_TOP_Y && ball.x > SHOOTER_LANE_X + 2)) {
     settleRound(null);
   }
@@ -802,9 +836,10 @@ function settleRound(landedSlotIdx) {
     marqueeCards.forEach(c => c.classList.remove('locked', 'active'));
     domMultiplier.textContent = '-';
     domWinHint.textContent = '目前狀態：尚未投幣';
+    domStatusHint.textContent = '提示：請先投幣以抽選倍率';
     slots.forEach(s => s.isWin = false);
 
-    ball.x = SHOOTER_LANE_X + 17;
+    ball.x = SHOOTER_LANE_X + 21;
     ball.y = CH - 45;
     ball.vx = 0;
     ball.vy = 0;
@@ -815,18 +850,21 @@ function settleRound(landedSlotIdx) {
 function render() {
   ctx.clearRect(0, 0, CW, CH);
 
+  // 底盤背景
   const bgGrad = ctx.createRadialGradient(CW / 2, CH / 2 - 50, 20, CW / 2, CH / 2, 350);
   bgGrad.addColorStop(0, '#152433');
   bgGrad.addColorStop(1, '#0a1017');
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, CW, CH);
 
+  // 頂部導流弧
   ctx.strokeStyle = '#e67e22';
   ctx.lineWidth = 5;
   ctx.beginPath();
   ctx.arc(SHOOTER_LANE_X - 10, 88, 86, Math.PI * 1.5, Math.PI * 2);
   ctx.stroke();
 
+  // 發射道分隔板
   ctx.strokeStyle = '#c0392b';
   ctx.lineWidth = 4;
   ctx.beginPath();
@@ -834,6 +872,7 @@ function render() {
   ctx.lineTo(SHOOTER_LANE_X, CH);
   ctx.stroke();
 
+  // 繪製 12 個無縫等寬球道
   STATE.neonBlinkTimer += 0.05;
   const isBlinkOn = Math.sin(STATE.neonBlinkTimer * 5) > 0;
 
@@ -845,7 +884,7 @@ function render() {
     ctx.fillRect(s.x, SLOTS_TOP_Y, s.w, CH - SLOTS_TOP_Y);
 
     ctx.strokeStyle = '#ecf0f1';
-    ctx.lineWidth = 2.2;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(s.x, SLOTS_TOP_Y);
     ctx.lineTo(s.x, CH - 10);
@@ -855,22 +894,24 @@ function render() {
     const lampY = CH - 22;
 
     ctx.beginPath();
-    ctx.arc(lampX, lampY, 5, 0, Math.PI * 2);
+    ctx.arc(lampX, lampY, 5.5, 0, Math.PI * 2);
     ctx.fillStyle = isWinSlot ? (isBlinkOn ? '#00ff88' : '#00aa55') : '#4a1515';
     ctx.fill();
 
-    ctx.fillStyle = isWinSlot ? (isBlinkOn ? '#ffffff' : '#f1c40f') : '#7f8c8d';
-    ctx.font = 'bold 9px sans-serif';
+    ctx.fillStyle = isWinSlot ? (isBlinkOn ? '#ffffff' : '#f1c40f') : '#8fa0a8';
+    ctx.font = 'bold 10px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(isWinSlot ? '★中' : `${i + 1}`, lampX, SLOTS_TOP_Y + 16);
   }
 
+  // 封閉最後一道分隔線
   const lastX = SLOTS_START_X + TOTAL_SLOTS * SLOT_W;
   ctx.beginPath();
   ctx.moveTo(lastX, SLOTS_TOP_Y);
   ctx.lineTo(lastX, CH - 10);
   ctx.stroke();
 
+  // 繪製釘子
   pins.forEach(pin => {
     ctx.save();
     ctx.beginPath();
@@ -885,31 +926,34 @@ function render() {
     ctx.restore();
   });
 
+  // 繪製拉桿彈簧
   const springBaseY = CH - 12;
   const springComp = STATE.ballState === 'CHARGING' ? (STATE.power / 100) * 26 : 0;
   ctx.strokeStyle = '#95a5a6';
   ctx.lineWidth = 3.5;
   ctx.beginPath();
-  ctx.moveTo(SHOOTER_LANE_X + 17, springBaseY);
-  ctx.lineTo(SHOOTER_LANE_X + 17, CH - 34 + springComp);
+  ctx.moveTo(SHOOTER_LANE_X + 21, springBaseY);
+  ctx.lineTo(SHOOTER_LANE_X + 21, CH - 32 + springComp);
   ctx.stroke();
 
   ctx.fillStyle = '#e74c3c';
-  ctx.fillRect(SHOOTER_LANE_X + 7, CH - 35 + springComp, 20, 5);
+  ctx.fillRect(SHOOTER_LANE_X + 9, CH - 33 + springComp, 24, 6);
 
+  // 鋼珠拖尾
   if (ball.trail.length > 1 && STATE.ballState === 'PLAYING') {
     ctx.save();
     for (let t = 0; t < ball.trail.length; t++) {
       const p = ball.trail[t];
-      const alpha = (t + 1) / ball.trail.length * 0.35;
+      const alpha = ((t + 1) / ball.trail.length) * 0.35;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, BALL_R * 0.85, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, BALL_R * 0.88, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(220, 240, 255, ${alpha})`;
       ctx.fill();
     }
     ctx.restore();
   }
 
+  // 繪製加大 50% 鋼珠
   ctx.save();
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
@@ -928,7 +972,7 @@ function render() {
 
   ctx.fillStyle = ballGrad;
   ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-  ctx.shadowBlur = 6;
+  ctx.shadowBlur = 7;
   ctx.shadowOffsetY = 3;
   ctx.fill();
   ctx.restore();
@@ -937,7 +981,7 @@ function render() {
   requestAnimationFrame(render);
 }
 
-// 僅保留單一的主渲染迴圈進入點
+// 單一主渲染迴圈
 requestAnimationFrame(render);
 </script>
 </body>
