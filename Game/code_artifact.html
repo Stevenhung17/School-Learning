@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>台式復古懷舊打彈珠台 v3.1</title>
+  <title>台式復古懷舊打彈珠台</title>
   
   <!-- HTTP 安全標頭與 CSP 規範 -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';">
@@ -448,10 +448,35 @@ for (let i = 0; i < TOTAL_SLOTS; i++) {
   });
 }
 
+// 兩座向內旋轉的轉輪機關設定
+// 左轉輪順時針 (+dir)，右轉輪逆時針 (-dir)，碰撞時產生向中心聚集的切線動能
+const spinners = [
+  {
+    x: 115,
+    y: 275,
+    radius: 30,
+    angle: 0,
+    speed: 0.055, // 順時針向內帶動
+    arms: 4,
+    armWidth: 3.5,
+    color: '#00e5ff'
+  },
+  {
+    x: 295,
+    y: 275,
+    radius: 30,
+    angle: 0,
+    speed: -0.055, // 逆時針向內帶動
+    arms: 4,
+    armWidth: 3.5,
+    color: '#ff9100'
+  }
+];
+
 // 釘陣配置
 const pins = [];
 
-// 1. 上半部交錯主釘板（預留 SHOOTER_LANE_X - 28 安全寬度）
+// 1. 上半部交錯主釘板（避開中段旋轉機關之半徑區域，預留足夠旋轉與彈跳空間）
 const ROWS = 8;
 const ROW_START_Y = 120;
 const ROW_SPACING = 30;
@@ -462,8 +487,13 @@ for (let r = 0; r < ROWS; r++) {
   const offsetX = isOdd ? 30 + spacing * 0.5 : 30;
   for (let c = 0; c < count; c++) {
     const px = offsetX + c * spacing;
-    if (px < SHOOTER_LANE_X - 28 && px > 24) {
-      pins.push({ x: px, y: ROW_START_Y + r * ROW_SPACING, r: PIN_R, type: 'normal' });
+    const py = ROW_START_Y + r * ROW_SPACING;
+
+    // 判斷是否落入旋轉機關範圍（距離半徑 40 內排除，維持動態乾淨）
+    const nearSpinner = spinners.some(sp => Math.hypot(px - sp.x, py - sp.y) < sp.radius + 12);
+
+    if (!nearSpinner && px < SHOOTER_LANE_X - 28 && px > 24) {
+      pins.push({ x: px, y: py, r: PIN_R, type: 'normal' });
     }
   }
 }
@@ -612,7 +642,7 @@ function prepareBallForLaunch() {
   }
 }
 
-// 投幣單次處理函式
+// 投幣單次處理
 function doInsertCoin() {
   if (STATE.isRolling || STATE.ballState === 'PLAYING') return false;
   if (STATE.credits <= 0) return false;
@@ -655,7 +685,6 @@ function handleCoinPointerDown(e) {
   const success = doInsertCoin();
   if (!success) return;
 
-  // 按住 320ms 後啟動快速連續投幣（每 110ms 加注一枚）
   coinHoldTimeout = setTimeout(() => {
     coinHoldInterval = setInterval(() => {
       const ok = doInsertCoin();
@@ -733,7 +762,25 @@ function releaseAndLaunch() {
 btnShoot.addEventListener('pointerdown', startCharging);
 window.addEventListener('pointerup', releaseAndLaunch);
 
+// 線段與圓形求最近點
+function getClosestPointOnSegment(p, a, b) {
+  const abx = b.x - a.x;
+  const aby = b.y - a.y;
+  const apx = p.x - a.x;
+  const apy = p.y - a.y;
+  const abLenSq = abx * abx + aby * aby;
+  if (abLenSq === 0) return { x: a.x, y: a.y, t: 0 };
+  let t = (apx * abx + apy * aby) / abLenSq;
+  t = Math.max(0, Math.min(1, t));
+  return { x: a.x + t * abx, y: a.y + t * aby, t };
+}
+
 function updatePhysics() {
+  // 更新旋轉機關的角度
+  spinners.forEach(sp => {
+    sp.angle = (sp.angle + sp.speed) % (Math.PI * 2);
+  });
+
   if (STATE.ballState !== 'PLAYING') return;
 
   ball.trail.push({ x: ball.x, y: ball.y });
@@ -802,7 +849,65 @@ function updatePhysics() {
     sound.playPinHit(0.7);
   }
 
-  // 4. 釘子碰撞
+  // 4. 旋轉機關葉片碰撞物理（向內賦予切線速度，導向中路）
+  for (let s = 0; s < spinners.length; s++) {
+    const sp = spinners[s];
+    const distToCenter = Math.hypot(ball.x - sp.x, ball.y - sp.y);
+
+    if (distToCenter < sp.radius + BALL_R + 6) {
+      const armStep = (Math.PI * 2) / sp.arms;
+      for (let i = 0; i < sp.arms; i++) {
+        const curA = sp.angle + i * armStep;
+        const p1 = { x: sp.x, y: sp.y };
+        const p2 = {
+          x: sp.x + Math.cos(curA) * sp.radius,
+          y: sp.y + Math.sin(curA) * sp.radius
+        };
+
+        const closest = getClosestPointOnSegment(ball, p1, p2);
+        const cdx = ball.x - closest.x;
+        const cdy = ball.y - closest.y;
+        const cDist = Math.hypot(cdx, cdy);
+        const armThick = sp.armWidth * 0.5;
+
+        if (cDist < BALL_R + armThick) {
+          const nx = cDist > 0.001 ? cdx / cDist : Math.cos(curA + Math.PI / 2);
+          const ny = cDist > 0.001 ? cdy / cDist : Math.sin(curA + Math.PI / 2);
+
+          // 計算葉片碰觸點之旋轉切線速度: v = omega * r
+          const rx = closest.x - sp.x;
+          const ry = closest.y - sp.y;
+          const bladeVx = -sp.speed * ry;
+          const bladeVy = sp.speed * rx;
+
+          // 相對速度
+          const relVx = ball.vx - bladeVx;
+          const relVy = ball.vy - bladeVy;
+          const velAlongNormal = relVx * nx + relVy * ny;
+
+          if (velAlongNormal < 0) {
+            const restitution = 0.85;
+            const impulse = -(1 + restitution) * velAlongNormal;
+            ball.vx += nx * impulse + bladeVx * 0.6;
+            ball.vy += ny * impulse + bladeVy * 0.6;
+
+            // 葉片向內導流輔助加成（往中心 x=205 微推）
+            const towardCenter = sp.x < 205 ? 0.7 : -0.7;
+            ball.vx += towardCenter;
+
+            const overlap = BALL_R + armThick - cDist + 0.5;
+            ball.x += nx * overlap;
+            ball.y += ny * overlap;
+
+            sound.playPinHit(1.1);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // 5. 釘子碰撞
   for (let i = 0; i < pins.length; i++) {
     const pin = pins[i];
     const dx = ball.x - pin.x;
@@ -835,7 +940,7 @@ function updatePhysics() {
     }
   }
 
-  // 5. 球軌分隔木條碰撞
+  // 6. 球軌分隔木條碰撞
   for (let i = 0; i <= TOTAL_SLOTS; i++) {
     const divX = SLOTS_START_X + i * SLOT_W;
     if (ball.y > SLOTS_TOP_Y && ball.y < CH - 15) {
@@ -847,7 +952,7 @@ function updatePhysics() {
     }
   }
 
-  // 6. 軌道沉入判定
+  // 7. 軌道沉入判定
   if (ball.y >= CH - 36) {
     const relativeX = ball.x - SLOTS_START_X;
     let slotIdx = Math.floor(relativeX / SLOT_W);
@@ -928,6 +1033,56 @@ function render() {
   ctx.moveTo(SHOOTER_LANE_X, 88);
   ctx.lineTo(SHOOTER_LANE_X, CH);
   ctx.stroke();
+
+  // 繪製中段向內旋轉機關
+  spinners.forEach((sp, idx) => {
+    ctx.save();
+    ctx.translate(sp.x, sp.y);
+
+    // 外圈安全氣場光環
+    ctx.beginPath();
+    ctx.arc(0, 0, sp.radius + 3, 0, Math.PI * 2);
+    ctx.strokeStyle = idx === 0 ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 145, 0, 0.2)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 葉片
+    const armStep = (Math.PI * 2) / sp.arms;
+    for (let i = 0; i < sp.arms; i++) {
+      const a = sp.angle + i * armStep;
+      ctx.strokeStyle = sp.color;
+      ctx.lineWidth = sp.armWidth;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(a) * sp.radius, Math.sin(a) * sp.radius);
+      ctx.stroke();
+
+      // 葉片端點小圓球
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * sp.radius, Math.sin(a) * sp.radius, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 中心旋轉軸心
+    ctx.fillStyle = '#1e293b';
+    ctx.strokeStyle = '#f8fafc';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 7.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = sp.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  });
 
   // 繪製 12 個無縫等寬球道
   STATE.neonBlinkTimer += 0.05;
@@ -1010,7 +1165,7 @@ function render() {
     ctx.restore();
   }
 
-  // 繪製加大 50% 鋼珠
+  // 繪製鋼珠
   ctx.save();
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
