@@ -6,7 +6,7 @@
   <title>台式復古懷舊打彈珠台</title>
   
   <!-- HTTP 安全標頭與 CSP 規範 -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="X-Frame-Options" content="DENY">
   <meta name="referrer" content="strict-origin-when-cross-origin">
@@ -155,11 +155,11 @@
 
 <main class="retro-cabinet">
   <header class="header-bar">
-    <div class="header-title">★ 夜市傳統打彈珠台 ★</div>
+    <div class="header-title">★ 夜市傳統打彈珠台 Ver. 3.0★</div>
     <button type="button" id="btn-sound-toggle" class="btn-sound" aria-label="切換音效">🔊 音效: 開</button>
   </header>
 
-  <!-- 跑馬燈區塊：2X(5軌), 4X(4軌), 6X(3軌-兩側), 8X(2軌-兩側), 10X(1軌-兩側) -->
+  <!-- 跑馬燈區塊 -->
   <section style="background: rgba(0,0,0,0.85); padding: 10px; border-radius: 10px; border: 2px solid rgba(245,158,11,0.7);">
     <div style="font-size: 0.75rem; color: #fbd38d; margin-bottom: 6px; display: flex; justify-content: space-between;">
       <span>● 押注倍率跑馬燈 (高賠禁開中央4~8軌)</span>
@@ -381,7 +381,7 @@ class SoundController {
       const gain = this.ctx.createGain();
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(280, t);
-      osc.frequency.linearRampToValueAtTime(110, t + 0.3);
+      osc.linearRampToValueAtTime(110, t + 0.3);
       gain.gain.setValueAtTime(0.1, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
       osc.connect(gain);
@@ -440,7 +440,7 @@ for (let i = 0; i < TOTAL_SLOTS; i++) {
 // 釘陣配置
 const pins = [];
 
-// 1. 上半部交錯主釘板
+// 1. 上半部交錯主釘板（修正：增加右側邊距 SHOOTER_LANE_X - 28，避免大球夾在釘子與邊界間）
 const ROWS = 8;
 const ROW_START_Y = 120;
 const ROW_SPACING = 30;
@@ -451,7 +451,8 @@ for (let r = 0; r < ROWS; r++) {
   const offsetX = isOdd ? 30 + spacing * 0.5 : 30;
   for (let c = 0; c < count; c++) {
     const px = offsetX + c * spacing;
-    if (px < SHOOTER_LANE_X - 18 && px > 20) {
+    // 預留足夠寬度大於 2 * BALL_R + PIN_R，徹底杜絕卡球
+    if (px < SHOOTER_LANE_X - 28 && px > 24) {
       pins.push({ x: px, y: ROW_START_Y + r * ROW_SPACING, r: PIN_R, type: 'normal' });
     }
   }
@@ -515,25 +516,17 @@ function updateWinHint(mult, winsCount) {
   domWinHint.append(t1, s1, t2, s2);
 }
 
-/**
- * 依據倍率決定中獎軌道抽樣池
- * 高倍率 (6X, 8X, 10X) 排除中央 4~8 軌道（索引 3, 4, 5, 6, 7）
- */
 function calculateWinSlots(mult, winsCount) {
   STATE.winSlotCount = winsCount;
   STATE.winSlotIndices.clear();
 
   let pool = [];
-  // 軌道 4~8 對應索引為 3 ~ 7
   if (mult >= 6) {
-    // 僅保留左側軌道 (1, 2, 3 -> 索引 0, 1, 2) 與右側軌道 (9, 10, 11, 12 -> 索引 8, 9, 10, 11)
     pool = [0, 1, 2, 8, 9, 10, 11];
   } else {
-    // 2X 與 4X 允許全 12 軌道抽樣
     pool = Array.from({ length: TOTAL_SLOTS }, (_, i) => i);
   }
 
-  // Fisher-Yates 洗牌法
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -699,7 +692,7 @@ function updatePhysics() {
   ball.x += ball.vx;
   ball.y += ball.vy;
 
-  // 1. 發射道物理
+  // 1. 發射軌道內的物理處理
   if (ball.inShooterLane) {
     if (ball.x + BALL_R > CW - 5) {
       ball.x = CW - 5 - BALL_R;
@@ -710,7 +703,8 @@ function updatePhysics() {
       ball.vx = Math.abs(ball.vx) * WALL_BOUNCE;
     }
 
-    if (ball.y < 75) {
+    // 只有在彈珠向上衝出頂部時，才切換至主盤面並給予左向轉彎力
+    if (ball.y < 75 && ball.vy < 0) {
       ball.inShooterLane = false;
       ball.vx = (-5.6 - Math.random() * 2.8) * 0.8;
       ball.vy = Math.min(ball.vy, -1.2);
@@ -718,7 +712,7 @@ function updatePhysics() {
       return;
     }
 
-    // 發射力道過輕回落重置
+    // 發射力道過輕或回彈回軌道後落回發射台
     if (ball.vy > 0 && ball.y >= CH - 45) {
       ball.y = CH - 45;
       ball.vy = -ball.vy * 0.25;
@@ -728,14 +722,21 @@ function updatePhysics() {
         STATE.ballState = 'READY_IN_SHOOTER';
         btnShoot.disabled = false;
         btnInsert.disabled = false;
-        domStatusHint.textContent = '⚠️ 發射力道過輕，請重新蓄力彈射！';
+        domStatusHint.textContent = '彈珠已回落至發射台，請重新蓄力彈射！';
         return;
       }
     }
     return;
   }
 
-  // 2. 邊界碰撞
+  // 2. 主盤面狀態判斷：檢測彈珠是否回彈掉入發射軌道
+  if (ball.x > SHOOTER_LANE_X && ball.y > 78) {
+    ball.inShooterLane = true;
+    ball.vx *= 0.3; // 消除橫向動能，使其自然落入發射軌道
+    return;
+  }
+
+  // 3. 主盤面邊界碰撞
   if (ball.y - BALL_R < 10) {
     ball.y = 10 + BALL_R;
     ball.vy = Math.abs(ball.vy) * WALL_BOUNCE;
@@ -746,13 +747,14 @@ function updatePhysics() {
     ball.vx = Math.abs(ball.vx) * WALL_BOUNCE;
     sound.playPinHit(0.7);
   }
+  // 發射道左側隔板碰撞（阻擋彈珠從左側穿入）
   if (ball.x + BALL_R > SHOOTER_LANE_X && ball.y > 85 && ball.y < SLOTS_TOP_Y) {
     ball.x = SHOOTER_LANE_X - BALL_R;
     ball.vx = -Math.abs(ball.vx) * WALL_BOUNCE;
     sound.playPinHit(0.7);
   }
 
-  // 3. 釘子碰撞
+  // 4. 釘子碰撞
   for (let i = 0; i < pins.length; i++) {
     const pin = pins[i];
     const dx = ball.x - pin.x;
@@ -785,7 +787,7 @@ function updatePhysics() {
     }
   }
 
-  // 4. 球軌分隔木條碰撞
+  // 5. 球軌分隔木條碰撞
   for (let i = 0; i <= TOTAL_SLOTS; i++) {
     const divX = SLOTS_START_X + i * SLOT_W;
     if (ball.y > SLOTS_TOP_Y && ball.y < CH - 15) {
@@ -797,7 +799,7 @@ function updatePhysics() {
     }
   }
 
-  // 5. 軌道沉入判定
+  // 6. 軌道沉入判定
   if (ball.y >= CH - 36) {
     const relativeX = ball.x - SLOTS_START_X;
     let slotIdx = Math.floor(relativeX / SLOT_W);
@@ -805,7 +807,7 @@ function updatePhysics() {
     settleRound(slotIdx);
   }
 
-  if (ball.y > CH + 10 || (ball.y > SLOTS_TOP_Y && ball.x > SHOOTER_LANE_X + 2)) {
+  if (ball.y > CH + 10) {
     settleRound(null);
   }
 }
