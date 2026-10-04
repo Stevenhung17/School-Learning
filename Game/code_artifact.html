@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>台式復古懷舊打彈珠台</title>
+  <title>台式復古懷舊打彈珠台 v3.1</title>
   
   <!-- HTTP 安全標頭與 CSP 規範 -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';">
@@ -61,6 +61,15 @@
       display: flex;
       align-items: center;
       gap: 6px;
+    }
+    .version-tag {
+      font-size: 0.75rem;
+      color: #fca5a5;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      margin-left: 4px;
     }
     .btn-sound {
       background: #3e140d;
@@ -155,7 +164,9 @@
 
 <main class="retro-cabinet">
   <header class="header-bar">
-    <div class="header-title">★ 夜市傳統打彈珠台 Ver. 3.0★</div>
+    <div class="header-title">
+      ★ 夜市傳統打彈珠台 v3.1 ★
+    </div>
     <button type="button" id="btn-sound-toggle" class="btn-sound" aria-label="切換音效">🔊 音效: 開</button>
   </header>
 
@@ -212,7 +223,7 @@
     </div>
 
     <div style="display: flex; gap: 8px;">
-      <button type="button" id="btn-insert-coin" class="btn-action btn-coin">🪙 投幣 (+1)</button>
+      <button type="button" id="btn-insert-coin" class="btn-action btn-coin">🪙 投幣 (可長按加注)</button>
       <button type="button" id="btn-shoot" disabled class="btn-action btn-shoot">🚀 按住蓄力彈射</button>
     </div>
 
@@ -338,7 +349,7 @@ class SoundController {
       const gain = this.ctx.createGain();
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(200, t);
-      osc.frequency.linearRampToValueAtTime(60, t + 0.12);
+      osc.linearRampToValueAtTime(60, t + 0.12);
       gain.gain.setValueAtTime(0.18, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
       osc.connect(gain);
@@ -414,7 +425,7 @@ const CH = canvas.height;
 
 // 彈珠與邊界設定
 const SHOOTER_LANE_X = 416;
-const BALL_R = 10.5; // 加大 50%
+const BALL_R = 10.5;
 const PIN_R = 3.6;
 const GRAVITY = 0.168;
 const PIN_BOUNCE = 0.704;
@@ -440,7 +451,7 @@ for (let i = 0; i < TOTAL_SLOTS; i++) {
 // 釘陣配置
 const pins = [];
 
-// 1. 上半部交錯主釘板（修正：增加右側邊距 SHOOTER_LANE_X - 28，避免大球夾在釘子與邊界間）
+// 1. 上半部交錯主釘板（預留 SHOOTER_LANE_X - 28 安全寬度）
 const ROWS = 8;
 const ROW_START_Y = 120;
 const ROW_SPACING = 30;
@@ -451,7 +462,6 @@ for (let r = 0; r < ROWS; r++) {
   const offsetX = isOdd ? 30 + spacing * 0.5 : 30;
   for (let c = 0; c < count; c++) {
     const px = offsetX + c * spacing;
-    // 預留足夠寬度大於 2 * BALL_R + PIN_R，徹底杜絕卡球
     if (px < SHOOTER_LANE_X - 28 && px > 24) {
       pins.push({ x: px, y: ROW_START_Y + r * ROW_SPACING, r: PIN_R, type: 'normal' });
     }
@@ -602,9 +612,10 @@ function prepareBallForLaunch() {
   }
 }
 
-btnInsert.addEventListener('click', () => {
-  if (STATE.isRolling || STATE.ballState === 'PLAYING') return;
-  if (STATE.credits <= 0) return;
+// 投幣單次處理函式
+function doInsertCoin() {
+  if (STATE.isRolling || STATE.ballState === 'PLAYING') return false;
+  if (STATE.credits <= 0) return false;
 
   STATE.credits--;
   STATE.bet++;
@@ -619,7 +630,46 @@ btnInsert.addEventListener('click', () => {
   } else {
     prepareBallForLaunch();
   }
-});
+  return true;
+}
+
+// 長按連續投幣加注控制器
+let coinHoldTimeout = null;
+let coinHoldInterval = null;
+
+function clearCoinTimers() {
+  if (coinHoldTimeout) {
+    clearTimeout(coinHoldTimeout);
+    coinHoldTimeout = null;
+  }
+  if (coinHoldInterval) {
+    clearInterval(coinHoldInterval);
+    coinHoldInterval = null;
+  }
+}
+
+function handleCoinPointerDown(e) {
+  if (e && e.cancelable) e.preventDefault();
+  clearCoinTimers();
+
+  const success = doInsertCoin();
+  if (!success) return;
+
+  // 按住 320ms 後啟動快速連續投幣（每 110ms 加注一枚）
+  coinHoldTimeout = setTimeout(() => {
+    coinHoldInterval = setInterval(() => {
+      const ok = doInsertCoin();
+      if (!ok) {
+        clearCoinTimers();
+      }
+    }, 110);
+  }, 320);
+}
+
+btnInsert.addEventListener('pointerdown', handleCoinPointerDown);
+btnInsert.addEventListener('pointerup', clearCoinTimers);
+btnInsert.addEventListener('pointerleave', clearCoinTimers);
+btnInsert.addEventListener('pointercancel', clearCoinTimers);
 
 btnFreeCoin.addEventListener('click', () => {
   STATE.credits += 20;
@@ -670,6 +720,7 @@ function releaseAndLaunch() {
   STATE.ballState = 'PLAYING';
   btnShoot.disabled = true;
   btnInsert.disabled = true;
+  clearCoinTimers();
 
   const launchSpeed = (13.5 + (launchForce / 100) * 8.6) * 0.82;
   ball.vy = -launchSpeed;
@@ -703,7 +754,6 @@ function updatePhysics() {
       ball.vx = Math.abs(ball.vx) * WALL_BOUNCE;
     }
 
-    // 只有在彈珠向上衝出頂部時，才切換至主盤面並給予左向轉彎力
     if (ball.y < 75 && ball.vy < 0) {
       ball.inShooterLane = false;
       ball.vx = (-5.6 - Math.random() * 2.8) * 0.8;
@@ -712,7 +762,6 @@ function updatePhysics() {
       return;
     }
 
-    // 發射力道過輕或回彈回軌道後落回發射台
     if (ball.vy > 0 && ball.y >= CH - 45) {
       ball.y = CH - 45;
       ball.vy = -ball.vy * 0.25;
@@ -729,14 +778,14 @@ function updatePhysics() {
     return;
   }
 
-  // 2. 主盤面狀態判斷：檢測彈珠是否回彈掉入發射軌道
+  // 2. 主盤面狀態判斷：檢測彈珠是否回落發射軌道
   if (ball.x > SHOOTER_LANE_X && ball.y > 78) {
     ball.inShooterLane = true;
-    ball.vx *= 0.3; // 消除橫向動能，使其自然落入發射軌道
+    ball.vx *= 0.3;
     return;
   }
 
-  // 3. 主盤面邊界碰撞
+  // 3. 邊界碰撞
   if (ball.y - BALL_R < 10) {
     ball.y = 10 + BALL_R;
     ball.vy = Math.abs(ball.vy) * WALL_BOUNCE;
@@ -747,7 +796,6 @@ function updatePhysics() {
     ball.vx = Math.abs(ball.vx) * WALL_BOUNCE;
     sound.playPinHit(0.7);
   }
-  // 發射道左側隔板碰撞（阻擋彈珠從左側穿入）
   if (ball.x + BALL_R > SHOOTER_LANE_X && ball.y > 85 && ball.y < SLOTS_TOP_Y) {
     ball.x = SHOOTER_LANE_X - BALL_R;
     ball.vx = -Math.abs(ball.vx) * WALL_BOUNCE;
